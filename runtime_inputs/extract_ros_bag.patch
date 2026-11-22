@@ -1,0 +1,12 @@
+--- a/server/recording/extract_ros_bag.py
++++ b/server/recording/extract_ros_bag.py
+@@ -803,7 +803,8 @@
+             # frame. Deduplicate indices so the last frame appears only once.
+             temp_idx = np.unique(temp_idx)
+             time_stamps = time_stamps[temp_idx].tolist()
+-            chunk_size = 1000
++            # Project fix: preserve native samples across former 1000-frame trims.
++            chunk_size = len(time_stamps)
+             chunks = [
+                 time_stamps[i : i + chunk_size] for i in range(0, len(time_stamps), chunk_size)
+             ]

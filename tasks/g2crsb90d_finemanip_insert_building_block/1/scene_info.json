@@ -1,0 +1,1003 @@
+{
+  "scene_id": "1",
+  "seed": 8249020,
+  "layout": {
+    "table_da3f1e18": {
+      "usd": "table_000",
+      "xyz": [
+        0.0,
+        0.0,
+        0.367
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "table_da3f1e18"
+      ],
+      "keywords": [
+        "table",
+        "work_table"
+      ],
+      "description": {
+        "semantic_name": [
+          "table"
+        ],
+        "object_category": [
+          "furniture",
+          "table"
+        ],
+        "color": "white",
+        "shape": "rectangular",
+        "materials": [
+          "plastic",
+          "metal"
+        ],
+        "dimensions": [
+          0.1687,
+          0.0668,
+          0.0668
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "simple",
+          "modern",
+          "compact",
+          "stable",
+          "functional"
+        ],
+        "full_description": [
+          "A white rectangular table with a flat top and four slender legs, viewed from multiple angles."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.30000004172325134,
+          -0.5000000596046449,
+          -0.36747046645785236
+        ],
+        "max": [
+          0.30000001192092896,
+          0.5,
+          0.36491865567949633
+        ]
+      }
+    },
+    "benchmark_building_blocks_01e2de23": {
+      "usd": "benchmark_building_blocks_000",
+      "xyz": [
+        0.03,
+        -0.035,
+        0.804
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.7518878500888191,
+        -0.6592910289764403
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_01e2de23"
+      ],
+      "keywords": [
+        "shape_sorter_box",
+        "building_block_box"
+      ],
+      "description": {
+        "semantic_name": [
+          "shape_sorter_box"
+        ],
+        "object_category": [
+          "toy",
+          "educational toy"
+        ],
+        "color": "colorful",
+        "shape": "cube",
+        "materials": [
+          "wood",
+          "plastic"
+        ],
+        "dimensions": [
+          0.14,
+          0.14,
+          0.14
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "wooden",
+          "educational",
+          "colorful",
+          "geometric",
+          "interactive"
+        ],
+        "full_description": [
+          "A wooden cube with a red top and multiple geometric cutouts on each side for sorting shapes."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.07234150171279907,
+          -0.07225141674280167,
+          -0.07268528640270233
+        ],
+        "max": [
+          0.072916179895401,
+          0.07287321239709854,
+          0.07260957360267639
+        ]
+      }
+    },
+    "benchmark_building_blocks_6a1443c4": {
+      "usd": "benchmark_building_blocks_002",
+      "xyz": [
+        0.111,
+        0.275,
+        0.751
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        -0.4733712666159113,
+        0.8808630108833313
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_6a1443c4"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block",
+        "POSITION_TAG_left"
+      ],
+      "description": {
+        "semantic_name": [
+          "yellow_cylinder"
+        ],
+        "object_category": [
+          "man-made",
+          "toy"
+        ],
+        "color": "yellow",
+        "shape": "cylindrical",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "yellow",
+          "cylindrical",
+          "simple",
+          "solid"
+        ],
+        "full_description": [
+          "A small, solid yellow cylinder with a smooth, matte finish visible from all rotation angles."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.01697159931063652,
+          -0.01898757927119732,
+          -0.01697159931063652
+        ],
+        "max": [
+          0.01697159931063652,
+          0.01896902360022068,
+          0.01697159931063652
+        ]
+      }
+    },
+    "benchmark_building_blocks_a628ff7e": {
+      "usd": "benchmark_building_blocks_008",
+      "xyz": [
+        -0.185,
+        0.134,
+        0.751
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.9920999432809815,
+        -0.12545000016689306
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_a628ff7e"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "cube"
+        ],
+        "object_category": [
+          "toy",
+          "building block"
+        ],
+        "color": "light blue",
+        "shape": "complex-shaped",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "geometric",
+          "small",
+          "faceted",
+          "angular",
+          "simple"
+        ],
+        "full_description": [
+          "A small, pale blue cube with smooth, matte surfaces and sharp edges."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.018400000408291817,
+          -0.019300000742077827,
+          -0.026799999177455902
+        ],
+        "max": [
+          0.018400000408291817,
+          0.019300000742077827,
+          0.026799999177455902
+        ]
+      }
+    },
+    "benchmark_building_blocks_0d717b42": {
+      "usd": "benchmark_building_blocks_012",
+      "xyz": [
+        0.071,
+        0.385,
+        0.746
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.9028184083340194,
+        0.43002200126647944
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_0d717b42"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "triangular_prism"
+        ],
+        "object_category": [
+          "geometry",
+          "prism"
+        ],
+        "color": "yellow",
+        "shape": "triangular",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "geometric",
+          "small",
+          "yellow",
+          "triangular",
+          "simple"
+        ],
+        "full_description": [
+          "A solid yellow triangular prism with flat, matte surfaces and sharp edges."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.025599999353289604,
+          -0.014100000262260437,
+          -0.013500000350177288
+        ],
+        "max": [
+          0.025599999353289604,
+          0.014100000262260437,
+          0.013299999758601189
+        ]
+      }
+    },
+    "benchmark_building_blocks_5fbbd944": {
+      "usd": "benchmark_building_blocks_011",
+      "xyz": [
+        -0.053,
+        -0.389,
+        0.752
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.964919209034108,
+        0.26254698634147644
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_5fbbd944"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "blue_cube"
+        ],
+        "object_category": [
+          "geometric shape",
+          "building block"
+        ],
+        "color": "blue",
+        "shape": "cube",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "geometric",
+          "simple",
+          "solid",
+          "blue"
+        ],
+        "full_description": [
+          "A solid blue cube with a slightly textured surface, viewed from multiple angles against a black background."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.019600000232458115,
+          -0.019999999552965164,
+          -0.018200000748038292
+        ],
+        "max": [
+          0.019600000232458115,
+          0.019999999552965164,
+          0.018200000748038292
+        ]
+      }
+    },
+    "benchmark_building_blocks_35570a3b": {
+      "usd": "benchmark_building_blocks_003",
+      "xyz": [
+        0.05,
+        -0.218,
+        0.7510325729905845
+      ],
+      "xyzw": [
+        0.6752815501277863,
+        0.20974948303261598,
+        0.014998470067430818,
+        0.7069476842880248
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_35570a3b"
+      ],
+      "keywords": [
+        "target_block",
+        "building_block",
+        "POSITION_TAG_right",
+        "right_hand"
+      ],
+      "description": {
+        "semantic_name": [
+          "star_block"
+        ],
+        "object_category": [
+          "geometry",
+          "building block"
+        ],
+        "color": "purple",
+        "shape": "complex-shaped",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "geometric",
+          "faceted",
+          "small",
+          "purple",
+          "angular"
+        ],
+        "full_description": [
+          "A solid purple, five-pointed star-shaped block with smooth, matte surfaces."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.019600000232458115,
+          -0.018975187093019485,
+          -0.020400000736117363
+        ],
+        "max": [
+          0.019600000232458115,
+          0.018975187093019485,
+          0.020400000736117363
+        ]
+      }
+    },
+    "benchmark_building_blocks_90db351f": {
+      "usd": "benchmark_building_blocks_001",
+      "xyz": [
+        0.166,
+        -0.159,
+        0.747
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.999997236395743,
+        -0.0023509999737142996
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_90db351f"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "half_cylinder"
+        ],
+        "object_category": [
+          "toy",
+          "building block"
+        ],
+        "color": "red",
+        "shape": "complex-shaped",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "red",
+          "geometric",
+          "simple",
+          "blocky"
+        ],
+        "full_description": [
+          "A solid red half-cylinder with a matte finish, showing its flat rectangular face and curved surface from multiple angles."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.013299999758601189,
+          -0.014999999664723873,
+          -0.023399999365210533
+        ],
+        "max": [
+          0.013299999758601189,
+          0.014999999664723873,
+          0.023399999365210533
+        ]
+      }
+    },
+    "benchmark_building_blocks_fd2a8b88": {
+      "usd": "benchmark_building_blocks_004",
+      "xyz": [
+        0.065,
+        0.199,
+        0.752
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.7142388908028825,
+        -0.6999019980430604
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_fd2a8b88"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "purple_cylinder"
+        ],
+        "object_category": [
+          "toy",
+          "building block"
+        ],
+        "color": "purple",
+        "shape": "complex-shaped",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "purple",
+          "rounded",
+          "smooth",
+          "geometric"
+        ],
+        "full_description": [
+          "A solid purple cylinder with a smooth, slightly reflective surface."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.02329999953508377,
+          -0.019999999552965164,
+          -0.014499999582767487
+        ],
+        "max": [
+          0.02329999953508377,
+          0.019999999552965164,
+          0.014499999582767487
+        ]
+      }
+    },
+    "benchmark_building_blocks_201b5ce9": {
+      "usd": "benchmark_building_blocks_014",
+      "xyz": [
+        -0.184,
+        -0.08,
+        0.745
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        -0.425770919057249,
+        0.9048309922218323
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_201b5ce9"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "yellow_cube"
+        ],
+        "object_category": [
+          "geometric shape",
+          "building block"
+        ],
+        "color": "yellow",
+        "shape": "cube",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "yellow",
+          "geometric",
+          "simple",
+          "solid"
+        ],
+        "full_description": [
+          "A small, solid yellow cube with smooth surfaces and sharp edges."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.017000000923871994,
+          -0.01360000018030405,
+          -0.012299999594688419
+        ],
+        "max": [
+          0.017000000923871994,
+          0.01360000018030405,
+          0.012299999594688419
+        ]
+      }
+    },
+    "benchmark_building_blocks_30176483": {
+      "usd": "benchmark_building_blocks_015",
+      "xyz": [
+        -0.062,
+        0.305,
+        0.747
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.12700564866078956,
+        0.9919019937515259
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_30176483"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "orange_pentagonal_prism"
+        ],
+        "object_category": [
+          "toy",
+          "building block"
+        ],
+        "color": "orange",
+        "shape": "complex-shaped",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "geometric",
+          "small",
+          "orange",
+          "faceted",
+          "rigid"
+        ],
+        "full_description": [
+          "An orange pentagonal prism with smooth, matte surfaces and sharp edges."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.01600000075995922,
+          -0.014999999664723873,
+          -0.021400000900030136
+        ],
+        "max": [
+          0.02280000038444996,
+          0.014999999664723873,
+          0.019200000911951065
+        ]
+      }
+    },
+    "benchmark_building_blocks_5dd86237": {
+      "usd": "benchmark_building_blocks_005",
+      "xyz": [
+        0.137,
+        -0.319,
+        0.747
+      ],
+      "xyzw": [
+        0.0,
+        0.0,
+        0.9367033594321811,
+        0.3501240015029906
+      ],
+      "tags": [
+        "root_scene_1bc1eb20",
+        "shape_sorter_scene_aaa1131a",
+        "benchmark_building_blocks_5dd86237"
+      ],
+      "keywords": [
+        "distractor_block",
+        "building_block"
+      ],
+      "description": {
+        "semantic_name": [
+          "red triangular prism"
+        ],
+        "object_category": [
+          "geometry",
+          "prism"
+        ],
+        "color": "red",
+        "shape": "triangular",
+        "materials": [
+          "plastic"
+        ],
+        "dimensions": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "unit": "m",
+        "descriptive_terms": [
+          "small",
+          "geometric",
+          "simple",
+          "red",
+          "solid"
+        ],
+        "full_description": [
+          "A solid red triangular prism with a matte, slightly textured surface visible from multiple angles."
+        ]
+      },
+      "registered": true,
+      "entity_local_bbox": {
+        "min": [
+          -0.023000000044703484,
+          -0.014999999664723875,
+          -0.016599999740719802
+        ],
+        "max": [
+          0.023000000044703484,
+          0.014999999664723875,
+          0.016400000080466277
+        ]
+      }
+    }
+  },
+  "relations": {
+    "graph": {
+      "directed": true,
+      "multigraph": false,
+      "graph": {
+        "rankdir": "LR"
+      },
+      "nodes": [
+        {
+          "id": "root_scene_1bc1eb20"
+        },
+        {
+          "id": "shape_sorter_scene_aaa1131a"
+        },
+        {
+          "tags": [
+            "table",
+            "work_table"
+          ],
+          "id": "table_da3f1e18"
+        },
+        {
+          "tags": [
+            "shape_sorter_box",
+            "building_block_box"
+          ],
+          "id": "benchmark_building_blocks_01e2de23"
+        },
+        {
+          "tags": [
+            "target_block",
+            "building_block",
+            "POSITION_TAG_left",
+            "left_hand"
+          ],
+          "id": "benchmark_building_blocks_6a1443c4"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_a628ff7e"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_0d717b42"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_5fbbd944"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_35570a3b"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_90db351f"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_fd2a8b88"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_201b5ce9"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_30176483"
+        },
+        {
+          "tags": [
+            "distractor_block",
+            "building_block"
+          ],
+          "id": "benchmark_building_blocks_5dd86237"
+        }
+      ],
+      "links": [
+        {
+          "source": "root_scene_1bc1eb20",
+          "target": "shape_sorter_scene_aaa1131a"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "table_da3f1e18"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_01e2de23"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_6a1443c4"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_a628ff7e"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_0d717b42"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_5fbbd944"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_35570a3b"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_90db351f"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_fd2a8b88"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_201b5ce9"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_30176483"
+        },
+        {
+          "source": "shape_sorter_scene_aaa1131a",
+          "target": "benchmark_building_blocks_5dd86237"
+        }
+      ]
+    }
+  },
+  "data_alignment": {
+    "dataset_id": 111120,
+    "task_id": 89815,
+    "dataset_dir": "place_blocks_into_box_002_90d",
+    "reference_episode_index": 1,
+    "reference_episode_id": 27461720,
+    "reference_raw_data_path": "agibot-raw://aidea-sim/episodes/31a6b2cf-d112-46fd-8679-910294f97996",
+    "reference_video": "videos/observation.images.top_head/chunk-000/file-001.mp4",
+    "camera": "observation.images.top_head",
+    "frame_index": 0,
+    "layout_method": "Same-side replay initial-frame comparison; existing asset variants and poses retained in instance 0, lateral positions mirrored in instance 1; not an exact 3D reconstruction",
+    "arm_assignment": "left target object"
+  },
+  "official_instruction": {
+    "instruction": "Use the right hand to insert the purple five-pointed star block into the matching five-pointed star hole of the shape sorter box.",
+    "target": {
+      "id1": "benchmark_building_blocks_35570a3b"
+    },
+    "gripper": {
+      "1": {
+        "handover": false,
+        "side": "right"
+      }
+    }
+  },
+  "official_subtask_steps": [
+    {
+      "checker": {
+        "PickUpOnGripper": "benchmark_building_blocks_35570a3b|right_gripper"
+      },
+      "instruction": "Pick up the purple five-pointed star block with the right gripper",
+      "step_out": 600
+    },
+    {
+      "checker": {
+        "InBBox": "benchmark_building_blocks_35570a3b|0.03,-0.035,0.744|0.16,0.16,0.16"
+      },
+      "instruction": "Insert the purple five-pointed star block through the matching five-pointed star hole into the shape sorter box",
+      "step_out": 900
+    }
+  ],
+  "task_template": "insert_building_block",
+  "source_scene": "/home/vipuser/by/genie_sim/genie_sim-main/source/geniesim_benchmark/src/geniesim_benchmark/benchmark/config/llm_task/insert_building_block/1"
+}

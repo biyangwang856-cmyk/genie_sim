@@ -1,0 +1,11 @@
+--- a/server/command_controller.py
++++ b/server/command_controller.py
+@@ -1932,7 +1932,7 @@
+                     # The displacement increases with gripper speed.
+                     self._reset_publisher_phase()
+ 
+-                    if self.enable_render:
++                    if self.enable_render and os.environ.get("GENIE_DIRECT_COMPRESSED_CAMERA") != "1":
+                         for camera in self.data["camera_prim_list"]:
+                             logger.info(f"republish camera{camera}")
+                             topic_name = "/" + camera.split("/")[-1] + "_rgb"

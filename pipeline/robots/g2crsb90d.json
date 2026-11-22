@@ -1,0 +1,181 @@
+{
+  "robot_id": "g2crsb90d",
+  "adapter_class": "g2_parallel_v1",
+  "arms": [
+    "left",
+    "right"
+  ],
+  "capabilities": [
+    "bimanual",
+    "friction_grasp",
+    "held_object_motion",
+    "joint_position_velocity_control",
+    "angular_parallel_gripper",
+    "curobo",
+    "gripper_opening_control"
+  ],
+  "validation_status": "left_arm_shape_scene0_physics_and_structured_plan_verified; other_task_scene_contracts_pending",
+  "calibration": "configs/robot-calibration.json",
+  "planner": "curobo_cuda",
+  "tcp": {
+    "frame": "gripper_{side}_center_link",
+    "wrist_offset_m": 0.185,
+    "rotation_rpy_rad": [
+      0,
+      0,
+      0
+    ]
+  },
+  "cooperation_workspace": {
+    "center_world_m": [
+      -0.08,
+      0.0,
+      0.98
+    ],
+    "operator_side_offset_m": 0.06
+  },
+  "shape_release_clearance_by_arm_m": {
+    "right": 0.006
+  },
+  "custom_grasp_candidates": {
+    "cap_body": {
+      "scene_id": "0",
+      "arm": "left",
+      "pose_options": {
+        "vertical_offsets_m": [-0.002],
+        "yaw_offsets_rad": [-0.12]
+      },
+      "reference_run": "put-the-cap-on-the-pen-new-s0-20261121113927"
+    }
+  },
+  "shape_grasp_axial_offset_by_arm": {
+    "right": {
+      "scene_id": "1",
+      "offset_m": 0.01,
+      "release_tcp_x_points_up": true,
+      "contact_height_offsets_m": [0.0],
+      "contact_height_reference_runs": [
+        "insert-building-block-s1-iso-feedback-20261121113227",
+        "insert-building-block-s1-iso-recovered-position-20261121130842"
+      ],
+      "maximum_release_gap_m": 0.035,
+      "transport_approach_route": {
+        "receiver": "benchmark_building_blocks_01e2de23",
+        "workpiece": "benchmark_building_blocks_35570a3b",
+        "source_run": "insert-building-block-s1-iso-coupled-position-20261121154518",
+        "insertion_certificate_sha256": "9e01d95edfc7043e9588e868be4091b2720a2edef834fad56dd8da895813c6a4",
+        "waypoints_box_xyz_wxyz": [
+          [0.175966289, 0.046801376, -0.047600366, -0.455785844, -0.282575781, -0.533792121, 0.653816613],
+          [0.177351714, 0.06624708, -0.059352581, -0.442935736, -0.36145334, -0.494055623, 0.655033173],
+          [0.18240165, 0.088494769, -0.072544648, -0.424483007, -0.444125928, -0.450193541, 0.647990828],
+          [0.193893789, 0.123373412, -0.093405495, -0.392075008, -0.544379424, -0.382349359, 0.635403178],
+          [0.21320592, 0.16255944, -0.114277522, 0.346332909, 0.649951717, 0.300415961, -0.60610769],
+          [0.24377818, 0.206257493, -0.135380302, 0.285323265, 0.745989749, 0.200219935, -0.567452118],
+          [0.274067527, 0.23745651, -0.147876424, 0.234514235, 0.807258866, 0.114690913, -0.529322389],
+          [0.310882027, 0.265438672, -0.157530002, 0.178199097, 0.852898379, 0.022796986, -0.490193568],
+          [0.353326332, 0.287250654, -0.162115592, 0.116655061, 0.888086813, -0.082963446, -0.436818584],
+          [0.397973977, 0.300110396, -0.16210634, 0.055990923, 0.901603756, -0.194739844, -0.382167603],
+          [0.432493968, 0.302938554, -0.159604374, 0.007924992, 0.89642439, -0.285215003, -0.339135533],
+          [0.469611662, 0.297297287, -0.15396759, -0.046586119, 0.868785971, -0.402797363, -0.284244533],
+          [0.501810582, 0.272354968, -0.147532634, -0.116979827, 0.776318765, -0.581010579, -0.214642965],
+          [0.498981629, 0.256071037, -0.147727539, -0.135827715, 0.707826315, -0.669242293, -0.180686171],
+          [0.481294496, 0.2386226, -0.151521071, 0.142456299, -0.632432297, 0.744596352, 0.159097028],
+          [0.44150301, 0.214259293, -0.15523138, 0.127620375, -0.53592916, 0.82358361, 0.134918543],
+          [0.387404983, 0.184115058, -0.153823298, 0.095131283, -0.450849872, 0.880172605, 0.11393251],
+          [0.350109852, 0.165248316, -0.149289597, 0.066421528, -0.401239969, 0.908350492, 0.097437424],
+          [0.310488783, 0.148239503, -0.142365632, 0.034399009, -0.352154375, 0.931841808, 0.080466441],
+          [0.269554419, 0.135018404, -0.133449225, 0.000473113, -0.303339694, 0.950723442, 0.064107279],
+          [0.228403446, 0.126688685, -0.122947488, -0.034299464, -0.255602259, 0.964910268, 0.049388324],
+          [0.188188151, 0.1234246, -0.111220327, -0.069030489, -0.210164659, 0.974524992, 0.0369682],
+          [0.15004989, 0.124658142, -0.098616065, -0.102913323, -0.168182424, 0.979994528, 0.027096946],
+          [0.104352689, 0.131684042, -0.080843563, -0.149954031, -0.116439378, 0.981719159, 0.01353337],
+          [0.065094253, 0.141794926, -0.063539444, -0.187471922, -0.076522047, 0.979251217, 0.008106146],
+          [0.0281634, 0.154819206, -0.044320882, -0.226946863, -0.03637907, 0.973220057, 0.003795349],
+          [0.006110807, 0.162923736, -0.031964451, -0.245657093, -0.016611827, 0.969207121, 0.003767774],
+          [-0.016407102, 0.164841402, -0.024796015, -0.267239225, -0.000011173, 0.963630218, 0.000001699]
+        ]
+      },
+      "release_override": {
+        "method": "native_effort_unload",
+        "speed_rad_s": 0.20,
+        "unload_seconds": 0.30,
+        "unload_min_effort_Nm": 0.20,
+        "max_effort_Nm": 0.45
+      },
+      "geometry_evidence": "output/shape-right-upper-pinch-clearance-candidate-margin.json",
+      "validation_status": "preserves the measured contact span on both fingers with 2 mm star end clearance; physical trial pending"
+    }
+  },
+  "shape_release_lateral_correction": {
+    "right": {
+      "scene_id": "1",
+      "box_xz_m": [-0.0005, -0.00025],
+      "reference_run": "insert-building-block-s1-20261120215158",
+      "validation_status": "candidate from full-mesh projection of the recorded fall; fresh physical validation required"
+    }
+  },
+  "gripper": {
+    "type": "angular_parallel",
+    "units": "rad",
+    "actuator_groups": {
+      "left": [
+        "idx31_gripper_l_inner_joint1",
+        "idx32_gripper_l_outer_joint1"
+      ],
+      "right": [
+        "idx71_gripper_r_inner_joint1",
+        "idx72_gripper_r_outer_joint1"
+      ]
+    },
+    "limits_source": "native_physics_snapshot",
+    "opening_target_source": "native_robot_configuration",
+    "native_control_gripper_scope": "one configured actuator; coupled-drive release requires explicit adapter validation",
+    "release_profile": {
+      "speed_rad_s": 0.15,
+      "stiffness": 100.0,
+      "damping": 5.0,
+      "max_effort_Nm": 5.0,
+      "validation_status": "experimental"
+    },
+    "release_overrides_by_task": {
+      "phone_packaging": {
+        "lid": {
+          "method": "native_effort_unload",
+          "speed_rad_s": 0.20,
+          "unload_seconds": 0.30,
+          "unload_min_effort_Nm": 0.20,
+          "max_effort_Nm": 0.45
+        }
+      }
+    },
+    "release_profiles": {
+      "right": {
+        "method": "native_velocity",
+        "speed_rad_s": 0.4,
+        "max_effort_Nm": 5.0,
+        "coupled_open_targets_rad": {
+          "idx71_gripper_r_inner_joint1": 0.0,
+          "idx72_gripper_r_outer_joint1": 0.0
+        },
+        "validation_status": "experimental; official API, one native actuator, passive joints unchanged"
+      }
+    }
+  },
+  "cameras": {
+    "head": "/G2/head_link3/head_front_Camera",
+    "left_wrist": "/G2/gripper_l_camera_link/Left_Camera",
+    "right_wrist": "/G2/gripper_r_camera_link/Right_Camera"
+  },
+  "data": {
+    "joint_order_source": "native_snapshot.joint_names",
+    "state_units": "rad for revolute joints; m for prismatic joints",
+    "actions": "actual resolved native joint position, velocity and effort targets; sparse commands retained separately",
+    "fixed_dimension": false
+  },
+  "second_robot_execution_verified": false,
+  "scene_task_prefix": "g2crsb90d_finemanip_",
+  "verification_evidence": {
+    "left_shape_scene0": "/data/by/genie_sim/collection-runs/insert-building-block-s0-20261120160637/acceptance.json",
+    "official_lerobot_reader": "/data/by/genie_sim/exports/block-structured-s0-160637-v2-1/official_loader_receipt.json"
+  }
+}

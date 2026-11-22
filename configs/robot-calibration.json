@@ -1,0 +1,13 @@
+{
+  "native_urdf": "/workspace/config/robot_cfg/G2/G2_crsB_90D_from_usd.urdf",
+  "host_calibrated_urdf": "/home/vipuser/by/genie_sim/cache/collection/G2_crsB_90D_from_usd_calibrated_v2.urdf",
+  "container_planner_urdf": "/isaac-sim/kit/python/lib/python3.12/site-packages/curobo/content/assets/robot/G2/G2_crsB_90D_from_usd.urdf",
+  "actual_tcp_m": 0.185,
+  "actual_fixed_rpy": [
+    0,
+    0,
+    0
+  ],
+  "model_revision": "usd185mm-native-gripper-axes-v2",
+  "calibrated_urdf_sha256": "106f70a17c3d62b24d51f2a61f2fdcaa95af9369d4d0bec3e7f5c7112b009b03"
+}

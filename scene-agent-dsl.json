@@ -1,0 +1,12 @@
+{
+  "scene_id": "paper_dsl_smoke",
+  "count": 1,
+  "instances": [
+    {
+      "instance_id": 0,
+      "path": "/home/vipuser/by/genie_sim/output/paper_dsl_smoke/0",
+      "ok": true
+    }
+  ],
+  "rejections": []
+}

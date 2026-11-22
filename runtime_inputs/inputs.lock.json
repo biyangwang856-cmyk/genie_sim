@@ -1,0 +1,69 @@
+{
+  "inputs": {
+    "cache/collection/G2_crsB_90D_from_usd_calibrated_v2.urdf": {
+      "file": "runtime_inputs/G2_crsB_90D_from_usd_calibrated_v2.urdf",
+      "sha256": "106f70a17c3d62b24d51f2a61f2fdcaa95af9369d4d0bec3e7f5c7112b009b03"
+    },
+    "output/insertion-certificate.json": {
+      "file": "runtime_inputs/insertion-certificate.json",
+      "sha256": "9e01d95edfc7043e9588e868be4091b2720a2edef834fad56dd8da895813c6a4"
+    },
+    "output/insertion_target_v2.json": {
+      "file": "runtime_inputs/insertion_target_v2.json",
+      "sha256": "f81400a89bf14b56caed57ffede0e4af0d9b6f0d4c99b84c0a330b1c70c6c006"
+    }
+  },
+  "sdk_patches": {
+    "server/command_controller.py": {
+      "patch": "runtime_inputs/command_controller.patch",
+      "before_sha256": "c54133745d7949cb48ebed5722078b25c580248a40a71984ca025facc8c999c3",
+      "after_sha256": "4fa0d53235bcfff7292fd192431626db7c88e7fb7750632fc9bb0269c49b4cf0",
+      "patch_sha256": "772c1e810ee6dedb2852d037436413db0c01a506bf22d1ac1c5dec270c48b618"
+    },
+    "server/recording/extract_ros_bag.py": {
+      "patch": "runtime_inputs/extract_ros_bag.patch",
+      "before_sha256": "8ca61b7a2964027ffdf39a5b0dc4d4a0c1f64bae08a6ec48ff88530f77422145",
+      "after_sha256": "6d6d585f6782a04176f8f1e8bc6c9bb149a53642378f8d6a2f19bdf292ab1a99",
+      "patch_sha256": "2443e53fa69dcafa1c74321e6b87327c6a9a408e760fe7270eb990b28f9440b4"
+    }
+  },
+  "scene_and_calibration_sha256": {
+    "configs/robot-calibration.json": "9884f751b9ff24082b2d97bc8ed4c07f61abdd80d42458174717397334940ce7",
+    "tasks/g2crsb90d_finemanip_insert_building_block/0/instructions.json": "156563b2d0540fb0bf1fec1d4e2d95e8f85f9e28d0413fbff271a7914d549079",
+    "tasks/g2crsb90d_finemanip_insert_building_block/0/problems.json": "ebe946c14d46175f2250ed067b33c16bcb626716bb9a700a9a24587d98898436",
+    "tasks/g2crsb90d_finemanip_insert_building_block/0/scene.usda": "1a38ab2d488251b9cecb7ad4692853b21edc4135a50549b0ba9876ed1be2a2d9",
+    "tasks/g2crsb90d_finemanip_insert_building_block/0/scene_info.json": "7e633e0d46b3f4b5337df8c76763e675f1b866200fc375dd1891ad7ea148a523",
+    "tasks/g2crsb90d_finemanip_insert_building_block/0/task_info.json": "2997fcd756848c881449721346f0eb08657e09fa718a84eee70ee9a98a25b40a",
+    "tasks/g2crsb90d_finemanip_insert_building_block/1/instructions.json": "142d0dda9d1d793398380b546318b5a75c61ff821d1ac09a7c88af9b4f0ebac7",
+    "tasks/g2crsb90d_finemanip_insert_building_block/1/problems.json": "ca37f028280186990a6afe3773276913dcabf847bfc9b5c2402fa6951f5b2444",
+    "tasks/g2crsb90d_finemanip_insert_building_block/1/scene.usda": "3b9334a0016fba0bddb39cf0015ec7c23f95915f136c3ee5764597c9969fbb2c",
+    "tasks/g2crsb90d_finemanip_insert_building_block/1/scene_info.json": "cfe364b49b14532083a0ee00c90561a9d1f136d788ddb4bbb01e6d7cee3e8ac2",
+    "tasks/g2crsb90d_finemanip_insert_building_block/1/task_info.json": "4e7dc579b7f0c778151354c6826c312f76920b070bbca0cc7b40e41d979aedc0",
+    "tasks/g2crsb90d_finemanip_insert_building_block/data_gen.py": "d521b91df9257e3fb427381e71f534fc9b7659c4af70b16bf08332e22cab2175",
+    "tasks/g2crsb90d_finemanip_insert_building_block/task_info.json": "a0315d7ca5dd5b147681b45131fe2cf4a89d4c506cd53eb08e4ff2741a64bae6",
+    "tasks/g2crsb90d_finemanip_phone_packaging/0/instructions.json": "6360352bfc4cc871c65d620a44f79ed985522fde8164ae5f62f34936a43bb25e",
+    "tasks/g2crsb90d_finemanip_phone_packaging/0/problems.json": "7ae6406a9eb3770a7343dde131675a38ccc6da9d01f5558a253097f5f9e90d61",
+    "tasks/g2crsb90d_finemanip_phone_packaging/0/scene.usda": "66263fc6e8d4550b757c833db99bad770512047142faaff9700381f3a15a73b9",
+    "tasks/g2crsb90d_finemanip_phone_packaging/0/scene_info.json": "55f016274cc24755b97a9ed1a4c355e0795edb1cc0d2a36f03ac801ebb590274",
+    "tasks/g2crsb90d_finemanip_phone_packaging/0/task_info.json": "f35151dcd5b276dbc99fcd7a240f335aafb9e4ea9b54672cda6ebb7bbffd1fd9",
+    "tasks/g2crsb90d_finemanip_phone_packaging/1/instructions.json": "6360352bfc4cc871c65d620a44f79ed985522fde8164ae5f62f34936a43bb25e",
+    "tasks/g2crsb90d_finemanip_phone_packaging/1/problems.json": "7ae6406a9eb3770a7343dde131675a38ccc6da9d01f5558a253097f5f9e90d61",
+    "tasks/g2crsb90d_finemanip_phone_packaging/1/scene.usda": "5674fde62d25b376cd21221c968c5f0ff01ca5629ee63cbfdebc061ffb9e90d0",
+    "tasks/g2crsb90d_finemanip_phone_packaging/1/scene_info.json": "9491b1f26c577b6767c816b550616cd59d32b044256f3b7f2b8d49bf6d867c62",
+    "tasks/g2crsb90d_finemanip_phone_packaging/1/task_info.json": "f35151dcd5b276dbc99fcd7a240f335aafb9e4ea9b54672cda6ebb7bbffd1fd9",
+    "tasks/g2crsb90d_finemanip_phone_packaging/data_gen.py": "d521b91df9257e3fb427381e71f534fc9b7659c4af70b16bf08332e22cab2175",
+    "tasks/g2crsb90d_finemanip_phone_packaging/task_info.json": "333fa3dc90e6535185aafc1b94096f509b7c1417a71bbf5bcd497ce44fac90f2",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/0/instructions.json": "42ce21f420370382d03012c22882be804ede55a9bb16407f6916632549dd2f41",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/0/problems.json": "950b47a07381cf13abdedd0f09ff05702d5d6173b5134b1df9eb5eae5623908a",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/0/scene.usda": "2bfac909ec39a4560d74cb8e354cecc80bc3ee210ce62a10e44d469a87a26816",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/0/scene_info.json": "d43ff01a3bc069dcec8d2abeb9c870ada63cbac45377153d05582ef3b71a15c4",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/0/task_info.json": "7fdc4fd11acb2c5ded357ffe1eb22013672d63592a9468d18c2ea77f456cdc51",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/1/instructions.json": "60bd224d15da4070eb17f983d31cc6ec1dce7c33d1071cc7e57fa9da57e633ba",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/1/problems.json": "1e864cc3c11ecaa8e0d53acf4ed7057fb19c50edfd44da44ea43b2db80e3d604",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/1/scene.usda": "322f3c4b69a305b2e562c2904d10bdf0c4848a8c9cfeff31c4b120264ef25ac1",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/1/scene_info.json": "2f83f1631ea941dd7268b30ef98345563634e928677713d94a2f8ddef4806d08",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/1/task_info.json": "50f2df708c740a26de9649d8af3362c086efad1b3fb9e221e857f4c7cedfd7d2",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/data_gen.py": "d521b91df9257e3fb427381e71f534fc9b7659c4af70b16bf08332e22cab2175",
+    "tasks/g2crsb90d_finemanip_put_the_cap_on_the_pen_new/task_info.json": "c2c67a86c90585495134c38d10aee7eff1294af2beeb11340d9e3c1f1093b306"
+  }
+}

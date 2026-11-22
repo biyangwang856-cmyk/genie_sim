@@ -1,0 +1,10 @@
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.usda text eol=lf
+# Preserve the exact exported USD layer, including its trailing blank line.
+tasks/**/*.usda whitespace=-blank-at-eof
+*.urdf text eol=lf
+*.patch -text -whitespace
+*.gz binary
