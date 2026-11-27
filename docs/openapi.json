@@ -245,8 +245,54 @@
             "type": "boolean",
             "default": false,
             "description": "Prepare real plans by default. Set true to also run the native collection worker."
+          },
+          "task_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "scene_request": {
+            "$ref": "#/components/schemas/SceneRequest"
+          },
+          "successes_per_scene": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "trajectory_request": {
+            "$ref": "#/components/schemas/TrajectoryRequest"
+          },
+          "skill_goal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["skill"],
+            "properties": {
+              "skill": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,80}$"},
+              "actor": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,80}$"},
+              "target_limit": {"enum": ["min", "max"]},
+              "angle_deg": {"type": "number", "description": "Signed rotation angle about world Z for the held-rotation probe."},
+              "completion": {"const": "pack_phone", "description": "Use the certified rotation before placing only the phone in the box base."}
+            },
+            "description": "A standalone RobotAPI skill goal. The active robot and asset determine whether adaptation is available."
           }
         }
+      },
+      "TrajectoryRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total_episodes": {"type": "integer", "minimum": 1, "maximum": 144},
+          "duplicate_policy": {"enum": ["distinct", "allow", "replay"], "default": "distinct"},
+          "duplicate_intent": {"type": "string", "maxLength": 512},
+          "reference_run": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,128}$"},
+          "lineage_id": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,128}$"},
+          "distinct_dimensions": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"enum": ["background", "support", "layout", "distractors", "lighting"]}
+          }
+        },
+        "if": {"required": ["duplicate_policy"], "properties": {"duplicate_policy": {"const": "replay"}}},
+        "then": {"required": ["reference_run"]}
       },
       "Accepted": {
         "type": "object",
@@ -402,9 +448,86 @@
                     "type": "string",
                     "minLength": 1
                   }
+                },
+                "scene_request_modes": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "existing",
+                      "compose_from_library"
+                    ]
+                  }
                 }
               }
             }
+          }
+        }
+      },
+      "SceneRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "existing",
+              "compose_from_library"
+            ],
+            "default": "compose_from_library"
+          },
+          "scene_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Existing source IDs."
+          },
+          "scene_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "background_query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "background_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "support_query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "support_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "object_policy": {
+            "const": "validated_assembly_pairs"
+          },
+          "variation": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "background",
+                "support",
+                "layout",
+                "distractors",
+                "lighting"
+              ]
+            }
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
           }
         }
       }

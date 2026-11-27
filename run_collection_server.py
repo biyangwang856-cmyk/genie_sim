@@ -51,13 +51,30 @@ def install_project_hooks():
     (evidence/'runtime-source.json').write_text(json.dumps(sources))
     from isaacsim.core.api import World
     original_render=World.render
+    original_step=World.step
+    exact_camera_render = os.environ.get('GENIE_EXACT_RENDER_CAMERA') == '1'
     def synchronized_render(world,*args,**kwargs):
         # Keep the engine's native synchronization lifecycle. Switching Fabric
         # or fetching PhysX results from a render callback is unsafe in 6.2.
         result=original_render(world,*args,**kwargs)
         hooks.record_render_sample(world)
+        if not exact_camera_render:
+            hooks.publish_pending_camera_samples(world)
         return result
     World.render=synchronized_render
+    def capture_step(world,*args,**kwargs):
+        # ROS joint and TF publishers sample before this upcoming PhysX step.
+        # Capture the same state outside the PhysX callback while its clock is fixed.
+        prepared = None
+        if exact_camera_render:
+            prepared = hooks.prepare_exact_camera_samples(world, lambda: original_render(world), update_wrist_cameras)
+        result=original_step(world,*args,**kwargs)
+        if exact_camera_render:
+            hooks.publish_exact_camera_samples(world, prepared)
+        elif hooks.pending_direct_cameras():
+            world.render()
+        return result
+    World.step=capture_step
     from server.ros_publisher import base as ros_base
     original_tf=ros_base._world_pose_for_tf
     def camera_tf(prim):
@@ -70,20 +87,22 @@ def install_project_hooks():
         return original_tf(prim)
     ros_base._world_pose_for_tf=camera_tf
     original_physics=CommandController.callback_physics
+    def update_wrist_cameras(self, *, force=False):
+        mounts=getattr(self,'_project_wrist_cameras',{})
+        now=float(self.ui_builder.my_world.current_time)
+        if mounts and (force or now-getattr(self,'_project_camera_update_time',-1)>=1/30-1e-5):
+            for name,(side,mount) in mounts.items():
+                p,q=self._get_object_pose('/G2/arm_'+side+'_end_link')
+                wrist=np.eye(4);wrist[:3,:3]=Rotation.from_quat(np.asarray(q)[[1,2,3,0]]).as_matrix();wrist[:3,3]=p
+                prim=omni.usd.get_context().get_stage().GetPrimAtPath(name)
+                # Sensor initialization may normalize/remove the earlier
+                # attribute. Reacquire it from the current stage.
+                xf=UsdGeom.Xformable(prim);op=xf.MakeMatrixXform();xf.SetResetXformStack(True)
+                op.Set(Gf.Matrix4d((wrist@mount).T.tolist()))
+            self._project_camera_update_time=now
     def follow_wrist_cameras(self,*args,**kwargs):
         try:
-            mounts=getattr(self,'_project_wrist_cameras',{})
-            now=float(self.ui_builder.my_world.current_time)
-            if mounts and now-getattr(self,'_project_camera_update_time',-1)>=1/30-1e-5:
-                for name,(side,mount) in mounts.items():
-                    p,q=self._get_object_pose('/G2/arm_'+side+'_end_link')
-                    wrist=np.eye(4);wrist[:3,:3]=Rotation.from_quat(np.asarray(q)[[1,2,3,0]]).as_matrix();wrist[:3,3]=p
-                    prim=omni.usd.get_context().get_stage().GetPrimAtPath(name)
-                    # Sensor initialization may normalize/remove the earlier
-                    # attribute. Reacquire it from the current stage.
-                    xf=UsdGeom.Xformable(prim);op=xf.MakeMatrixXform();xf.SetResetXformStack(True)
-                    op.Set(Gf.Matrix4d((wrist@mount).T.tolist()))
-                self._project_camera_update_time=now
+            update_wrist_cameras(self)
         except Exception as exc:
             if not getattr(self,'_project_camera_failure_saved',False):
                 folder=Path(os.environ['GENIE_EPISODE_EVIDENCE']);folder.mkdir(parents=True,exist_ok=True)
@@ -145,7 +164,7 @@ def install_project_hooks():
     def init_robot(self,*args,**kwargs):
         if not self.data.get('startRecording'):return original(self,*args,**kwargs)
         if 'camera_recording' not in sources:
-            camera=hooks.install_direct_camera_recording(original)
+            camera=hooks.install_direct_camera_recording(original, self, exact_render=exact_camera_render)
             sources['camera_recording']=camera
             controller=Path(camera['controller_source'])
             sources['native_controller_sha256']=hashlib.sha256(controller.read_bytes()).hexdigest()

@@ -32,11 +32,19 @@ export DOCKER_HOST=unix:///data/by/genie_sim/dockerhub-sidebuild-20261119/docker
 .venv/bin/python natural_backend.py --request requests/example.json --robot-id g2crsb90d --execute
 ```
 
-可分别指定 `--task insert_building_block`、`--scene 0`。用户语言、任务、场景和机器人 ID 分开传入，显式任务必须符合语言目标。当前配额策略固定为每任务 5 条、两场景 3+2；其他配额尚未实现。
+可分别指定 `--task insert_building_block`、`--scene 0`。显式任务必须符合语言目标。原始双场景默认采集 3+2 条，用户可以通过自然语言或 `trajectory_request.total_episodes` 指定总条数。
 
 Python 接口：`natural_backend.submit(instruction, robot_id=..., task_ids=..., scenes=..., execute=...)`。
 
-目前三个已注册任务可进入开发执行：`phone_packaging`、`put_the_cap_on_the_pen_new`、`insert_building_block`。尚未通过物理验收的任务/场景属于开发候选，不代表已有合格轨迹。未注册的机器人、资产、技能或任务返回 `status=unsupported` 及缺项，不用相近任务替代。
+未登记的刚性物体入盒任务也可以直接用自然语言提交。后台从资产库匹配工件和向上开口的容器，根据原始碰撞几何计算抓放目标，再用连续仿真验证松手后工件是否完整地留在容器里。
+
+```bash
+.venv/bin/python natural_backend.py --execute '在现有桌面场景 0，生成一条把有蓝白纸套的白色 4B 橡皮放进白色中空包装盒的轨迹。'
+```
+
+`ASSET_NOT_FOUND` 返回缺少的物体或容器。`ASSET_GEOMETRY_INCOMPATIBLE` 返回碰撞、尺寸或场景几何缺口。`SKILL_NOT_REGISTERED` 返回缺少的技能，如 `vacuum_pick`。
+
+已有固定任务是 `phone_packaging`、`put_the_cap_on_the_pen_new` 和 `insert_building_block`。受支持的目录外入盒任务编译为 `place_in_container`，独立物理验收通过后才会发布轨迹。后台用 `status=unsupported` 和对应缺口说明超出能力范围的请求。
 
 ## 模型与执行边界
 
@@ -132,7 +140,7 @@ label=reproduce-distinct-block-041208
 .venv/bin/python watch_isolated_run.py "/data/by/genie_sim/collection-runs/$label"
 ```
 
-正式作业冻结在 `jobs/recovered-20261121-structured-ed63df63/job.json`。它按每任务场景 0 三条及场景 1 两条发布，要求导出前的全部运动指纹不同。原始回合和替换证明分别从 `finalization.json` 与对应的 `provenance/` 查阅。
+初始场景正式作业的历史记录保存在 `jobs/recovered-20261121-structured-ed63df63/job.json`。当前下载版本按每个任务的场景 0、1 各一条保留。选择索引见精简包的 `finalization.json`，各自的运行证据见 `provenance/`。
 
 ## 限制
 

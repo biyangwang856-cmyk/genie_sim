@@ -25,7 +25,7 @@ class ReleaseTests(unittest.TestCase):
         assets = list(records("assets", ROOT))
         training = list(records("lerobot", ROOT))
         self.assertEqual((len(assets), sum(x["size"] for x in assets)), (20435, 43177589868))
-        self.assertEqual((len(training), sum(x["size"] for x in training)), (1094, 1915757461))
+        self.assertEqual((len(training), sum(x["size"] for x in training)), (442, 763358526))
 
     def test_same_size_corruption_is_rejected(self):
         with TemporaryDirectory() as tmp:

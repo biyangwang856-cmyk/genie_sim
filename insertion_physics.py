@@ -4,7 +4,7 @@ import json,os
 import numpy as np
 from shapely.geometry import Polygon,LineString
 from shapely.ops import unary_union
-ROOT=Path('/home/vipuser/by/genie_sim')
+ROOT=Path(os.environ.get('GENIE_PROJECT_ROOT','/home/vipuser/by/genie_sim'))
 def certificate():
  source=Path(os.environ.get('GENIE_RUN_SOURCE',ROOT))/'insertion-certificate.json'
  return json.loads((source if source.exists() else ROOT/'output/insertion-certificate.json').read_text())
@@ -20,6 +20,7 @@ def measure(star_world,box_world,full_projection=True,contract=None):
   polys=[Polygon(t[:,[0,2]]) for t in points]
   surface=unary_union([p for p in polys if p.area>1e-12])
   result['outside_hole_area_fraction']=float(surface.difference(aperture).area/surface.area)
+  result['inside_aperture_margin_m']=float(surface.distance(aperture.boundary)) if aperture.covers(surface) else 0.
  return result
 def crossing_report(path,contract=None):
  c=contract or certificate();rows=[];slice_checks=[];tolerance=.0005

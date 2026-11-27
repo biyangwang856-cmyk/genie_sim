@@ -2,8 +2,9 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from collection_scope import DEFAULT_ROBOT, SCENES, TASKS
+from collection_scope import DEFAULT_ROBOT, DYNAMIC_TASKS, SCENES, TASKS
 from robot_adapters import UnsupportedRequest
+from scene_contract import NEW_SCENE_MODES, count, scene_request
 
 
 # An adapter may report the ID of its durable native job before a long run.
@@ -47,16 +48,31 @@ OPERATIONS = (
 def isaac_collection(payload, on_native_job):
     # Worker-only import: catalog, web and status run without the GPU/Python stack.
     from natural_backend import submit
-    return submit(payload["instruction"], robot_id=payload["robot_id"],
+    options = {}
+    if "scene_request" in payload:
+        options["scene_options"] = payload["scene_request"]
+    if "successes_per_scene" in payload:
+        options["successes_per_scene"] = payload["successes_per_scene"]
+    if "trajectory_request" in payload:
+        options["trajectory_options"] = payload["trajectory_request"]
+    if "skill_goal" in payload:
+        options["skill_goal"] = payload["skill_goal"]
+    result=submit(payload["instruction"], robot_id=payload["robot_id"],
                   task_ids=payload.get("task_ids"), scenes=payload["scenes"],
-                  execute=payload["execute"], on_prepared=on_native_job)
+                  execute=payload["execute"], on_prepared=on_native_job, **options)
+    if "job_id" not in result and result.get("status") in {"unsupported","capability_gap"}:
+        error=UnsupportedRequest(result.get("message",result.get("reason","Skill unavailable")))
+        error.details.update(result)
+        raise error
+    return result
 
 
 class Registry:
     def __init__(self):
         self.specs = {spec.id: spec for spec in OPERATIONS}
         self.handlers = {"isaac_physx": isaac_collection}
-        self.scopes = {"isaac_physx": {"robot_ids": [DEFAULT_ROBOT], "task_ids": list(TASKS), "scenes": list(SCENES)}}
+        self.scopes = {"isaac_physx": {"robot_ids": [DEFAULT_ROBOT], "task_ids": [*TASKS, *DYNAMIC_TASKS], "scenes": list(SCENES),
+                                      "scene_request_modes": list(NEW_SCENE_MODES)}}
 
     def register(self, name, handler: Handler, *, scope=None):
         """Called by trusted deployment code at startup, in both web and worker."""
@@ -90,6 +106,8 @@ class Registry:
             raise ValueError("Expected a JSON object")
         required = set(spec.inputs)
         allowed = required | ({"robot_id", "task_ids", "scenes", "execute"} if spec.collection else set())
+        if name == "isaac_physx":
+            allowed |= {"task_id", "scene_request", "successes_per_scene", "trajectory_request", "skill_goal"}
         if required - payload.keys() or payload.keys() - allowed:
             raise ValueError(f"Missing fields {sorted(required - payload.keys())}; unknown fields {sorted(payload.keys() - allowed)}")
         for field in spec.inputs:
@@ -100,6 +118,21 @@ class Registry:
             return dict(payload)
         scope = self.scopes[name]
         cfg = {"robot_id": scope["robot_ids"][0], "scenes": list(scope["scenes"]), "execute": False, **payload}
+        if "task_id" in cfg:
+            if "task_ids" in cfg:
+                raise ValueError("Provide task_id or task_ids")
+            cfg["task_ids"] = [cfg.pop("task_id")]
+        if "scene_request" in cfg:
+            if "scenes" in payload and payload["scenes"] != list(scope["scenes"]):
+                raise ValueError("Select existing sources in scene_request.scene_ids")
+            cfg["scene_request"] = scene_request(cfg["scene_request"])
+        if "successes_per_scene" in cfg:
+            cfg["successes_per_scene"] = count(cfg["successes_per_scene"], "successes_per_scene", 12)
+        if "trajectory_request" in cfg:
+            from trajectory_diversity import resolve_trajectory_request
+            resolve_trajectory_request(cfg["trajectory_request"],instruction=cfg["instruction"])
+        if "skill_goal" in cfg and not isinstance(cfg["skill_goal"], dict):
+            raise ValueError("skill_goal must be an object")
         if type(cfg["execute"]) is not bool or not isinstance(cfg["robot_id"], str):
             raise ValueError("execute must be boolean and robot_id must be a string")
         if cfg["robot_id"] not in scope["robot_ids"]:

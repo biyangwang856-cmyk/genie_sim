@@ -24,48 +24,51 @@
     "ros": "Jazzy",
     "sdk_workspace_mount": "/data/by/genie_sim/runtime-collection"
   },
-  "accepted_job": "recovered-20261121-structured-ed63df63",
+  "accepted_job": "initial-scenes-20261126-one-per-task-scene",
   "groups": {
     "insert_building_block": {
       "scenes": {
-        "0": 3,
-        "1": 2
+        "0": 1,
+        "1": 1
       },
-      "frames": 9899
+      "frames": 4095
     },
     "phone_packaging": {
       "scenes": {
-        "0": 3,
-        "1": 2
+        "0": 1,
+        "1": 1
       },
-      "frames": 19675
+      "frames": 7644
     },
     "put_the_cap_on_the_pen_new": {
       "scenes": {
-        "0": 3,
-        "1": 2
+        "0": 1,
+        "1": 1
       },
-      "frames": 17144
+      "frames": 6915
     }
   },
-  "episodes": 15,
-  "frames": 46718,
+  "episodes": 6,
+  "frames": 18654,
   "attempts_completed": 50,
   "exact_motion_duplicates_excluded": 3,
   "distinct_trajectories": true,
   "lerobot": {
     "format": "LeRobot v2.1",
-    "lab_root": "/data/by/genie_sim/exports/recovered-20261121-structured-ed63df63-v2-1",
+    "lab_root": "/data/by/genie_sim/exports/initial-scenes-20261126-one-per-task-scene-v2-1",
     "official_loader_commit": "0cf864870cf29f4738d3ade893e6fd13fbd7cdb5",
     "numeric_readback_exact": true,
     "video_frames_decoded": true,
-    "official_loader_receipt_sha256": "707fa4eded8450e47767732e3c02de5d9572b9e377aca4b1a054da758063f501",
-    "inventory_sha256": "108260eb676c3ef8ddcae9f7bad9c9ad6fe75666585c3a4d5574b4a9049b5732"
+    "official_loader_receipt_sha256": "4ce8840dd6ce4428c83ca158beffe7908209f995e4b91dbbab62519b8afcb37e",
+    "inventory_sha256": "93a28db502a1413838a2d45dbaf74596364b0c00250d363c5e57501106b2ca3f",
+    "files": 442,
+    "bytes": 763358526
   },
   "raw": {
-    "lab_root": "/data/by/genie_sim/exports/recovered-20261121-structured-ed63df63-raw-trajectories",
-    "physical_episode_bytes": 38575238259,
-    "manifest_sha256": "7c09145bb79b4abdbd796f60d079c503c06977951acb04eb6c20f8160b0d5383",
-    "episode_path_count": 2122
-  }
+    "lab_root": "/data/by/genie_sim/exports/initial-scenes-20261126-one-per-task-scene-raw-trajectories",
+    "physical_episode_bytes": 15520149426,
+    "manifest_sha256": "f367386568951abca3b0106d14a3bf6eeeaf0180f5cc5da9c8ff6f3b1faff953",
+    "episode_path_count": 882
+  },
+  "selected_from": "recovered-20261121-structured-ed63df63"
 }

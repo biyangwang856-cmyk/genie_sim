@@ -8,6 +8,13 @@ from PIL import Image,ImageDraw
 
 def hardpoint(run):
     source=json.loads((run/'source/request.json').read_text())
+    if source['task_id']=='place_in_container':
+        events=[json.loads(line) for line in (run/'evidence/skill-execution.jsonl').read_text().splitlines()]
+        gates=[event for event in events if event.get('event')=='container_release_gate' and event.get('passed')]
+        if not gates:raise ValueError('No verified container release')
+        gate=gates[-1]
+        return 'container-release',gate['sim_time_s'],{
+            key:gate[key] for key in ('object','fit_margin_m','rim_clearance_m','expected_drop_m')}
     if source['task_id']=='insert_building_block':
         report=json.loads((run/'evidence/hole-crossing-audit.json').read_text())
         accepted=[attempt for attempt in report.get('passage_attempts',[]) if attempt['passed']]

@@ -5,7 +5,7 @@ import re
 import os
 from pathlib import Path
 
-ROOT=Path('/home/vipuser/by/genie_sim')
+ROOT=Path(os.environ.get('GENIE_PROJECT_ROOT', '/home/vipuser/by/genie_sim'))
 
 class UnsupportedRequest(ValueError):
     def __init__(self,message,*,missing_assets=(),missing_skills=(),missing_capabilities=()):

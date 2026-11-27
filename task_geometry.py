@@ -50,6 +50,9 @@ def task_spec(scene,robot_id):
             bindings={'phone':objects[0],'insert':objects[1],'lid':objects[2],'receiver':'benchmark_packaging_box_001'},
             release_modes={objects[0]:'native',objects[1]:'native',objects[2]:'gentle'},
             required_capabilities=['friction_grasp','angular_parallel_gripper','curobo'])
+        if 'project_packing_goal' in scene:
+            from goal_composition import bind_packing_goal
+            bind_packing_goal(spec, scene['project_packing_goal'])
     elif name=='put_the_cap_on_the_pen_new':
         pen=instruction['target']['id1'];cap=instruction['target']['id2']
         spec.update(role_bindings={'operator':instruction['gripper']['1']['side'],'assistant':instruction['gripper']['2']['side']},
@@ -61,11 +64,23 @@ def task_spec(scene,robot_id):
                 'bore_half_width_m':.00919,'tip_half_width_m':.00451,'transition_half_width_m':.00811,'barrel_half_width_m':.00877,
                 'transition_start_depth_m':.02336,'barrel_start_depth_m':.03152,
                 'model':'official_asset_physics_with_pose_triggered_snap_joint'})
-    else:raise UnsupportedRequest('No verified task geometry contract',missing_skills=[name])
-    precision=['shape_entry'] if name=='insert_building_block' else ['cap_preinsert'] if name=='put_the_cap_on_the_pen_new' else [t for t in spec['targets'] if t.endswith('_contact')]
-    spec['skill_targets']={'move_held':[t for t in spec['targets'] if t!='cap_insert_axis'],
-        'align_precision':precision,'insert_axial':['cap_insert_axis'] if name=='put_the_cap_on_the_pen_new' else []}
-    for obj in spec['manipulated_objects']+[spec['bindings'].get('receiver',spec['bindings'].get('pen'))]:
+    else:
+        from task_plugins import load
+        plugin=load(name)
+        spec.update(plugin.bind(scene,robot_id))
+        spec['task_plugin']=name
+    if transfer := scene.get('scene_transfer'):
+        support=transfer['support'];spec['support']=support
+        spec['profile_scene_id']=transfer['profile_scene_id']
+        spec['support_height_offset_m']=transfer['support_height_offset_m']
+        spec['environment_collision_paths']=transfer.get('collision_roots',[support['prim']])
+        if name=='phone_packaging' and transfer.get('mode')=='compose_from_library':
+            spec['release_modes'][spec['bindings']['insert']]='gentle'
+    if 'task_plugin' not in spec:
+        precision=['shape_entry'] if name=='insert_building_block' else ['cap_preinsert'] if name=='put_the_cap_on_the_pen_new' else [t for t in spec['targets'] if t.endswith('_contact')]
+        spec['skill_targets']={'move_held':[t for t in spec['targets'] if t!='cap_insert_axis'],
+            'align_precision':precision,'insert_axial':['cap_insert_axis'] if name=='put_the_cap_on_the_pen_new' else []}
+    for obj in sorted(set(spec['manipulated_objects']) | set(spec['bindings'].values())):
         info=spec['objects'].get(obj)
         if not info or not info['registered']:raise UnsupportedRequest('Task object is not a registered asset',missing_assets=[str(obj)])
         if not info['bbox']:raise UnsupportedRequest('Asset lacks size/frame metadata',missing_assets=[obj+':bbox'])
@@ -80,18 +95,24 @@ class Geometry:
 
     def __init__(self,robot,spec,ops,adapter):
         self.robot,self.spec,self.ops,self.adapter=robot,spec,ops,adapter;self.cache={}
-        self.initial={o:ops.pose(robot,o).copy() for o in spec['manipulated_objects']}
+        self.initial={o:ops.pose(robot,o).copy()
+                      for o in [*spec['manipulated_objects'], *spec.get('preserve_objects', [])]}
         seed=os.environ.get('GENIE_EPISODE_SEED')
         self.packing_approach_extra_m=0.
         self.pen_return_offset_m=np.zeros(2)
         self.shape_approach_extra_m=0.
+        self.shape_transport_lift_m=0.
         if seed is not None:
             rng=np.random.default_rng(int(seed))
             self.packing_approach_extra_m=float(rng.uniform(.004,.014))
             angle=float(rng.uniform(-np.pi,np.pi))
             self.pen_return_offset_m=float(rng.uniform(.012,.022))*np.array([np.cos(angle),np.sin(angle)])
-            if spec['template']=='insert_building_block' and spec['scene_id']=='0':
-                self.shape_approach_extra_m=float(rng.uniform(.008,.016))
+            if spec['template']=='insert_building_block':
+                lift = float(rng.uniform(.008, .016))
+                if spec.get('profile_scene_id', spec['scene_id']) == '0':
+                    self.shape_approach_extra_m = lift
+                elif 'support' in spec:
+                    self.shape_transport_lift_m = lift
 
     def gripper_collision_points(self, arm):
         hand = self.robot.client.command_any({'command':'ProjectGripperCollisionBounds','arm':arm})
@@ -146,7 +167,7 @@ class Geometry:
             'target_clearance_m':clearance,'receiver_collisions_active':True}
         return goal, excluded, metrics
 
-    def shape_release_geometry(self, obj, arm):
+    def shape_release_geometry(self, obj, arm, target_gap):
         from insertion_physics import certificate,measure
         goal, excluded = self.target('shape_entry', obj)
         receiver = self.spec['bindings']['receiver']
@@ -162,7 +183,7 @@ class Geometry:
         local_goal = world_to_base @ goal
         correction = self.adapter.config.get('shape_release_lateral_correction',{}).get(arm,{})
         offset = np.zeros(2)
-        if correction.get('scene_id')==self.spec['scene_id']:
+        if correction.get('scene_id')==self.spec.get('profile_scene_id',self.spec['scene_id']):
             offset=np.asarray(correction['box_xz_m'],dtype=float)
             if offset.shape!=(2,) or not np.isfinite(offset).all() or np.linalg.norm(offset)>.0011:
                 raise ValueError('Invalid submillimetre shape release correction')
@@ -170,7 +191,6 @@ class Geometry:
             if measure(base@local_goal,base,contract=native)['outside_hole_area_fraction']>.001:
                 raise ValueError('Corrected target projection would not fit the original aperture')
         p = transformed_points(local_goal,np.concatenate([mesh,hand_object]))
-        target_gap = float(self.adapter.config['shape_release_clearance_by_arm_m'][arm])
         old_gap = float(p[:,1].min()-plane)
         adjustment = target_gap-old_gap
         if abs(adjustment)>.06:raise ValueError('Measured gripper clearance is inconsistent with the shape entry profile')
@@ -179,6 +199,7 @@ class Geometry:
         hand_y = transformed_points(world_to_base, hand_world)[:, 1].reshape(len(hand['shapes']), 8)
         lowest_collider = int(np.argmin(hand_y.min(axis=1)))
         metrics = {'sim_time_s':hand['sim_time'],'target_minimum_clearance_m':target_gap,
+            'target_workpiece_clearance_m':float(p[:len(mesh),1].min()-plane+adjustment),
             'clearance_at_original_target_m':old_gap,'height_adjustment_m':adjustment,
             'box_xz_correction_m':offset.tolist(),'correction_reference_run':correction.get('reference_run'),
             'actual_hand_clearance_m':float(hand_y.min()-plane),
@@ -189,6 +210,9 @@ class Geometry:
 
     def target(self,ref,obj):
         if self.spec['target_objects'].get(ref)!=obj:raise ValueError('Target/object binding mismatch')
+        if self.spec.get('task_plugin'):
+            from task_plugins import load
+            return load(self.spec['task_plugin']).resolve_target(self,ref,obj)
         ops=self.ops;r=self.robot;b=self.spec['bindings']
         if ref.startswith('shape_'):
             from insertion_physics import measure
@@ -226,6 +250,7 @@ class Geometry:
             workspace=self.adapter.config['cooperation_workspace']
             t=np.eye(4);t[:3,:3]=np.column_stack([direction,[0,0,1],np.cross(direction,[0,0,1])]);t[:3,3]=workspace['center_world_m']
             t[1,3]+=np.sign(direction[1])*workspace['operator_side_offset_m']
+            t[2,3]+=self.spec.get('support_height_offset_m',0.)
             return t,[]
         if ref in ['cap_preinsert','cap_insert_axis']:
             return self.cap_preinsert_pose(ops.pose(r,b['pen'])),[]

@@ -4,7 +4,7 @@ import argparse,fcntl,hashlib,json,os,subprocess,time
 from audit_episode import audit,recording_completed_after_timeout
 from archive_episode import archive
 from reextract_recording import ensure_aligned
-from collection_control import ROOT,STORAGE,SOCKET,execution_profile,SOURCE_FILES
+from collection_control import COLLECTION_SLOTS,ROOT,STORAGE,SOCKET,execution_profile,SOURCE_FILES
 from robot_adapters import load_robot
 FILES=SOURCE_FILES
 AUDIT_REVISION=hashlib.sha256(b''.join((ROOT/f).read_bytes() for f in [
@@ -55,6 +55,18 @@ def audit_recording(run):
     evidence.mkdir(exist_ok=True)
     with (evidence/'audit.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX)
+        accepted=run/'acceptance.json'
+        seal=run/'automatic-admission.json'
+        cached=accepted
+        if seal.is_file():
+            admission=json.loads(seal.read_text())
+            if (admission.get('passed') is not True or not accepted.is_file()
+                    or hashlib.sha256(accepted.read_bytes()).hexdigest()!=admission.get('acceptance_sha256')
+                    or hashlib.sha256((run/'launch.json').read_bytes()).hexdigest()!=admission.get('launch_sha256')):
+                raise ValueError(f'Physical admission evidence changed: {run}')
+            cached=evidence/f'acceptance-recheck-{AUDIT_REVISION}.json'
+        previous=cached if cached.is_file() else accepted
+        result=json.loads(previous.read_text()) if previous.is_file() else {}
         archived=archive(run).get('archived',False)
         native=json.loads((run/'collection_result.json').read_text())
         task_result=run/'raw/task_result.json'
@@ -63,8 +75,6 @@ def audit_recording(run):
         if archived and (native.get('success') is True or late_result):
             try:aligned=ensure_aligned(run)
             except (ValueError,OSError,subprocess.SubprocessError) as exc:alignment_error=str(exc)
-        cached=run/'acceptance.json'
-        result=json.loads(cached.read_text()) if cached.exists() else {}
         if result.get('audit_revision')!=AUDIT_REVISION or alignment_error or (aligned and str(aligned)!=result.get('raw_directory')):
             result=audit(run)
             if alignment_error:
@@ -146,16 +156,24 @@ def refresh(job,jobdir):
     update_success_counts(job,jobdir)
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--job',required=True);p.add_argument('--adopt-run');p.add_argument('--max-attempts-per-scene',type=int,default=8,help='Limit for the selected code, model and plan in each scene');p.add_argument('--audit-only',action='store_true')
-    p.add_argument('--tasks',nargs='+');p.add_argument('--scenes',nargs='+',choices=['0','1']);p.add_argument('--source-run',type=Path)
-    p.add_argument('--slot',choices=['primary','secondary'],default='primary')
+    p=argparse.ArgumentParser();p.add_argument('--job',required=True);p.add_argument('--adopt-run');p.add_argument('--max-attempts-per-scene',type=int,help='Limit for the selected code, model and plan in each scene');p.add_argument('--audit-only',action='store_true')
+    p.add_argument('--tasks',nargs='+');p.add_argument('--scenes',nargs='+');p.add_argument('--source-run',type=Path)
+    p.add_argument('--slot',choices=COLLECTION_SLOTS,default=os.environ.get('GENIE_COLLECTION_SLOT','primary'))
+    p.add_argument('--wait-for-worker',action='store_true',help='Wait for this job worker before reconciling it')
     p.add_argument('--trial-seed',type=int,help='One controlled episode; requires exactly one task and scene')
     a=p.parse_args()
+    if a.max_attempts_per_scene is not None and a.max_attempts_per_scene<1:p.error('Positive attempt budget required')
     if a.trial_seed is not None and (not a.tasks or len(a.tasks)!=1 or not a.scenes or len(a.scenes)!=1):p.error('--trial-seed requires one task and one scene')
     path=Path(a.job).resolve();jobdir=path.parent
     with (jobdir/'worker.lock').open('w') as lock:
-        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        fcntl.flock(lock,fcntl.LOCK_EX if a.wait_for_worker else fcntl.LOCK_EX|fcntl.LOCK_NB)
         job=json.loads(path.read_text())
+        if job.get('automatic_admission'):
+            if job['status']=='complete':
+                print(json.dumps({'status':'complete','dataset':job.get('dataset')}));return
+            from scene_admission import execute
+            print(json.dumps(execute(job,path,a),ensure_ascii=False))
+            return
         robot=load_robot(job.get('robot_id',job['plan']['robot']))
         if job['plan']['robot']!=robot.robot_id:raise ValueError('Robot identity mismatch')
         if a.adopt_run:
@@ -186,7 +204,7 @@ def main():
                     # One first execution discovers the hardpoint. Only a recorded
                     # technical certificate for that recipe enables quota repeats.
                     if previous and not certified:pending_review=True;break
-                    if len(previous)>=a.max_attempts_per_scene:exhausted=True;break
+                    if len(previous)>=(a.max_attempts_per_scene or 8):exhausted=True;break
                     short=job['task_bindings'][task]['template']
                     label=short.replace('_','-')+'-s'+scene+'-'+time.strftime('%Y%m%d%H%M%S')
                     command=[str(ROOT/'.venv/bin/python'),str(ROOT/'collection_control.py'),short,'--scene',scene,'--label',label,

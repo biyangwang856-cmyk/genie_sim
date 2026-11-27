@@ -13,7 +13,7 @@ if [[ ! $host =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.@-]*$ ]]; then
   exit 2
 fi
 root=$(cd "$(dirname "$0")" && pwd)
-dataset=recovered-20261121-structured-ed63df63
+dataset=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["accepted_job"])' "$root/release/reference.json")
 case "$kind" in
   assets) remote_dir=/home/vipuser/by/genie_sim/GenieSimAssets; folder=GenieSimAssets ;;
   raw) folder="$dataset-raw-trajectories"; remote_dir="/data/by/genie_sim/exports/$folder" ;;

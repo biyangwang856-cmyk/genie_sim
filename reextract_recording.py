@@ -3,11 +3,11 @@
 Never synthesize frames, interpolate joints, or replay/set a simulation state.
 The immutable original recording and its first extraction are retained.
 """
-import argparse,ast,asyncio,hashlib,json,os,shutil,subprocess,sys,types
+import argparse,ast,asyncio,hashlib,json,os,shutil,subprocess,sys,time,types
 from pathlib import Path
 import numpy as np
 
-ROOT=Path('/home/vipuser/by/genie_sim');STORAGE=Path('/data/by/genie_sim')
+ROOT=Path(__file__).resolve().parent;STORAGE=Path('/data/by/genie_sim')
 IMAGE='geniesim-by-collection:a100-20261119'
 
 
@@ -32,6 +32,25 @@ def ensure_capture_headers(run,raw):
 def clock(frames):
     times=np.asarray([f['time_stamp'] for f in frames]);expected=np.arange(len(times))/30
     return bool(len(times)>2 and np.all(np.diff(times)>0) and np.allclose(times-times[0],expected,atol=.00011,rtol=0)),times
+
+
+def retained_capture_times(time_stamps, first_complete):
+    # Header audit publishes the four-decimal simulation clock, while the
+    # extractor operates on the original nanosecond timestamps.
+    return [stamp for stamp in time_stamps if round(float(stamp), 4) >= first_complete]
+
+
+def use_rounded_header_bounds(tree):
+    """Match the native reader's message window to its rounded timestamp keys."""
+    original = 'current_time < t_start or current_time > t_end'
+    rounded = 'round(current_time, 4) < t_start or round(current_time, 4) > t_end'
+    known = {ast.dump(ast.parse(source, mode='eval').body) for source in (original, rounded)}
+    matched = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and ast.dump(node.test) in known:
+            node.test = ast.parse(rounded, mode='eval').body
+            matched += 1
+    return matched
 
 
 def idle_prefix_proof(run, frames, report):
@@ -76,6 +95,7 @@ def inside(run):
     (provenance/'reextract_recording.py').write_bytes(script_bytes)
     (provenance/'extract_ros_bag.py').write_bytes(source_bytes)
     tree=ast.parse(text);count=0
+    if use_rounded_header_bounds(tree)!=3:raise ValueError('Unexpected upstream header-window policy')
     prefix_path=run/'evidence/idle-capture-prefix.json'
     prefix=json.loads(prefix_path.read_text()) if prefix_path.is_file() else None
     # Keep upstream transformations and extraction semantics intact. A single
@@ -95,10 +115,11 @@ def inside(run):
         boundary=next(i for i,node in enumerate(scope.body) if isinstance(node,ast.Assign)
                       and any(isinstance(t,ast.Name) and t.id=='chunk_size' for t in node.targets))
         start=float(prefix['first_complete_sim_time_s'])
-        trim=ast.parse(f'time_stamps = [t for t in time_stamps if t >= {start!r}]').body[0]
+        trim=ast.parse(f'time_stamps = retained_capture_times(time_stamps, {start!r})').body[0]
         scope.body.insert(boundary,trim)
     ast.fix_missing_locations(tree);sys.path[:0]=[str(runtime),str(runtime/'server'),str(source.parent),str(runtime/'scripts')]
     module=types.ModuleType('project_full_span_extractor');module.__file__=str(source)
+    module.retained_capture_times=retained_capture_times
     exec(compile(tree,str(source),'exec'),module.__dict__)
     info=json.loads((partial/'recording_info.json').read_text())
     reader=module.RosExtrater(bag_file=str(partial),output_dir=str(partial),task_info=info,with_img=True,with_video=True)
@@ -132,9 +153,34 @@ def inside(run):
     partial.rename(dest)
     (run/'evidence/aligned-archive.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt))
 
+def preserve_failed_extraction(run):
+    partial = run / 'raw-aligned.part'
+    if not partial.exists():
+        return
+    provenance = run / 'postprocess-source'
+    previous = provenance / 'reextract_recording.py'
+    if not partial.is_dir() or partial.is_symlink() or not previous.is_file() or sha(previous) == sha(__file__):
+        raise FileExistsError('Current or unverified re-extraction already has a partial output')
+    saved = run / f'reextract-failed-{sha(previous)[:12]}-{time.time_ns()}'
+    saved.mkdir()
+    partial.rename(saved / partial.name)
+    provenance.rename(saved / provenance.name)
+    log = run / 'reextract.log'
+    if log.is_file():
+        log.rename(saved / log.name)
+
+
 def ensure_aligned(run):
+    import fcntl
+
     run=Path(run).resolve()
     if run.parent!=STORAGE/'collection-runs':raise ValueError('Run outside project')
+    with (run/'evidence/alignment-worker.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return ensure_aligned_locked(run)
+
+
+def ensure_aligned_locked(run):
     receipt=run/'evidence/aligned-archive.json'
     if receipt.exists():
         result=json.loads(receipt.read_text())
@@ -152,6 +198,7 @@ def ensure_aligned(run):
             original_audit=run/'evidence/capture-header-audit-before-idle-trim.json'
             if not original_audit.exists():shutil.copy2(audit,original_audit)
             (run/'evidence/idle-capture-prefix.json').write_text(json.dumps(prefix,indent=2))
+    preserve_failed_extraction(run)
     env=dict(os.environ,DOCKER_HOST='unix:///data/by/genie_sim/dockerhub-sidebuild-20261119/docker.sock')
     command=['docker','run','--rm','--name','genie-util-align-'+run.name,'--network','none','--user','1000:1000',
         '-v',str(ROOT)+':'+str(ROOT)+':ro','-v',str(STORAGE)+':'+str(STORAGE)+':rw',

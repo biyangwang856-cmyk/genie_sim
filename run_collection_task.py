@@ -11,8 +11,9 @@ sys.path[:0]=[str(SOURCE),str(ROOT),str(MODULE/'scripts'),str(MODULE)]
 import collection_runtime
 
 bind_host=os.environ.get('GENIE_SIM_GRPC_HOST','127.0.0.1')
+if bind_host not in ('127.0.0.1','127.0.0.2','127.0.0.3','127.0.0.4'):
+    raise ValueError('Collection must use a registered host loopback address')
 if bind_host!='127.0.0.1':
-    if bind_host!='127.0.0.2':raise ValueError('Secondary collection must use the project loopback address')
     check_port=collection_runtime.port_open
     run_episode=collection_runtime.run_episode_subprocess
 

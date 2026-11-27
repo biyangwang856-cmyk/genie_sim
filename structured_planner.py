@@ -36,13 +36,25 @@ class StructuredPlanner:
             'insert_building_block':'Grasp the workpiece, move through geometry targets shape_approach, shape_entry_high, shape_entry, align_precision at shape_entry, release gently, retreat empty hand, wait for stability, verify_task. A precise pose alone is not insertion success.',
             'phone_packaging':'Pack phone, inner insert, then lid. For each object grasp, use its packing_i_approach then packing_i_contact targets, release, retreat, wait, verify_relation packing_stage_i. End with verify_task.',
             'put_the_cap_on_the_pen_new':'Use operator for pen and assistant for cap. Grasp both, present pen, move_held cap to cap_preinsert, MUST align_precision at cap_preinsert, then insert_axial using cap_insert_axis, verify_relation cap_seated, release cap while retaining pen, retreat assistant, sync_assembly_proxy on pen+cap, return pen to pen_return, release pen, retreat operator, wait, verify_task.'
-        }[self.spec['template']]
+        }.get(self.spec['template'],self.spec.get('reference_strategy','Use the task contract and skill constraints.'))
+        if self.spec.get('goal'):
+            reference = ('Execute, in order, only the relations declared in task.goal. Use the packing approach and '
+                         'precision contact targets for each listed component, then release, retreat, wait and verify '
+                         'its corresponding relation. Preserve every object in task.preserve_objects. Finish with verify_task.')
         first=self.spec['manipulated_objects'][0];role=next(iter(self.spec['role_bindings']))
         example={'version':1,'robot_id':self.adapter.robot_id,'task_id':self.spec['task_id'],'scene_id':self.spec['scene_id'],
             'role_bindings':self.spec['role_bindings'],'steps':[{'id':'s01','skill':'grasp','parameters':{'object':first,'role':role,'grasp_profile':self.spec['grasp_profiles'][first][0]}}]}
         context={'robot_capabilities':self.adapter.describe(),'task':self.spec,'skill_registry':SKILLS,
             'current_measured_state':state,'failure':failure,'reference_strategy':reference,'output_example':example,
             'parameter_enums':{'role':list(self.spec['role_bindings']),'target':self.spec['targets'],'relation':self.spec['relations'],'mode':['native','gentle']}}
+        if self.spec['template']=='put_the_cap_on_the_pen_new':
+            pen=self.spec['bindings']['pen'];cap=self.spec['bindings']['cap']
+            context['required_parameter_values']={
+                'sync_assembly_proxy':{'object':pen,'reference':cap,'role':'operator'},
+                'wait_stable':{'object':pen}}
+        if failure and failure.get('type')=='plan_contract_violation':
+            context['validation_retry_instruction']=('The rejected plan was never executed. Generate a complete initial plan. '
+                                                     'Fix the recorded validation error and use all required parameter bindings.')
         if failure:
             facts=set(state['achieved']);holding=state['holding_by_role']
             context['recovery_constraints']={'currently_held':holding,
@@ -86,6 +98,7 @@ class StructuredPlanner:
             'The executor runs your steps in their supplied order. Do not return a task-name selector or executable code. '
             'Do not invent positions, axes, asset IDs, skills, physical success labels, or new robot capabilities. '
             'Geometry and independent physical validators supply precision and success. '
+            'If required_parameter_values lists a skill used in your plan, use its exact parameter values. '
             'When the task specifies release_modes, use the exact release mode for each object in both initial and recovery plans. '
             'The steps list must be nonempty. Every step has exactly id, skill, parameters; parameters exactly match the skill contract. '
             'parameters.role MUST be a logical role key (operator or assistant), NEVER left/right. Physical left/right values occur ONLY inside role_bindings. '

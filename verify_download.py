@@ -10,7 +10,6 @@ import tempfile
 
 
 RELEASE = Path(__file__).resolve().parent / "release"
-RAW_MANIFEST = "7c09145bb79b4abdbd796f60d079c503c06977951acb04eb6c20f8160b0d5383"
 IMAGE_ID = "21b42560fa351db97478fa77851199fcfabb7af01ad3d35af1a8a80e05ac6732"
 IMAGE_TAG = "geniesim-by-collection:a100-20261119"
 
@@ -21,16 +20,16 @@ def digest(path):
 
 
 def records(kind, root):
+    release = json.loads((RELEASE / "reference.json").read_bytes())
     if kind != "raw":
         name = "asset-files.json.gz" if kind == "assets" else "lerobot-files.json.gz"
-        release = json.loads((RELEASE / "reference.json").read_bytes())
         if digest(RELEASE / name) != release[kind]["inventory_sha256"]:
             raise ValueError("Release file inventory has changed")
         with gzip.open(RELEASE / name, "rt", encoding="utf-8") as src:
             yield from json.load(src)["files"]
         return
     manifest = root / "manifest.json"
-    if digest(manifest) != RAW_MANIFEST:
+    if digest(manifest) != release["raw"]["manifest_sha256"]:
         raise ValueError("Raw manifest differs from the published release")
     data = json.loads(manifest.read_bytes())
     for episode in data["trajectory_index"]:

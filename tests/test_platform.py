@@ -100,6 +100,18 @@ class PlatformTests(unittest.TestCase):
         reply = self.call("GET", headers["Location"])[1]
         self.assertEqual((reply["state"], reply["native_job_id"]), ("interrupted", "native-1"))
 
+    def test_interrupted_scene_preflight_keeps_original_execute_flag(self):
+        _, body, headers=self.call("POST","/v1/jobs",{"instruction":"Compose a new phone scene","execute":False})
+        with self.jobs.db() as db:
+            db.execute("UPDATE jobs SET state='running',native_id='native-preflight' WHERE id=?",(body["id"],))
+        expected={"job_id":"native-preflight","status":"skill_plans_prepared","dataset":None}
+        with (patch("platform_jobs.read_native_summary",return_value={"automatic_admission":True}),
+              patch("natural_backend.resume",return_value=expected) as resume,
+              self.jobs.worker()):
+            self.assertTrue(self.jobs.run_next(self.registry))
+        resume.assert_called_once_with("native-preflight",execute=False)
+        self.assertEqual(self.call("GET",headers["Location"])[1]["result"],expected)
+
     def test_live_native_status_includes_only_selected_fields(self):
         directory = self.root / "jobs/native-2"
         directory.mkdir(parents=True)

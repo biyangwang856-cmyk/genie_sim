@@ -6,8 +6,8 @@
 | --- | --- | --- |
 | 3D 资产库 | `/home/vipuser/by/genie_sim/GenieSimAssets`，20,435 个发布文件，43,177,589,868 字节 | ModelScope 整库固定修订，或按官方 CLI 下载任务子集 |
 | 采集镜像 | 项目专属 Docker 内的 `geniesim-by-collection:a100-20261119`，镜像展开大小约 35.28 GB | 获取上游采集镜像，或用固定版源码构建。团队镜像另有依赖与镜像源适配 |
-| 原始回合 | `/data/by/genie_sim/exports/recovered-20261121-structured-ed63df63-raw-trajectories`，15 条，回合文件物理副本约 38.58 GB | 本批由团队在实验室生成。官方另有公开示范数据，可用于对照 |
-| LeRobot 训练数据 | `/data/by/genie_sim/exports/recovered-20261121-structured-ed63df63-v2-1`，1,094 个文件，约 1.92 GB | 本批由这 15 条原始轨迹导出，可用包内脚本从验收回合复现 |
+| 初始场景原始回合 | `/data/by/genie_sim/exports/initial-scenes-20261126-one-per-task-scene-raw-trajectories`，6 条，回合数据约 15.52 GB | 由团队在实验室采集，每个任务的场景 0 和 1 各留一条 |
+| 初始场景 LeRobot 训练数据 | `/data/by/genie_sim/exports/initial-scenes-20261126-one-per-task-scene-v2-1`，442 个文件，约 0.76 GB | 保留原动作、观测和录像，已通过 LeRobot v2.1 官方读回 |
 
 只做模型侧读取的同学可先取 LeRobot。需要看 MCAP、实际控制命令、原始视频或物理验收证据的同学取 raw。已有服务器运行权限的成员可就地使用资产和镜像，节省数十 GB 传输。镜像归档、Docker 加载后的镜像和构建缓存可能同时占用磁盘，按实际可用空间选择下载项。
 
@@ -24,7 +24,7 @@ bash download_from_lab.sh raw "$LAB" "$DEST"
 bash download_from_lab.sh image "$LAB" "$DEST"
 ```
 
-前三条分别完成可续传的目录复制和逐文件大小、SHA-256 核验。使用 Linux 文件系统（WSL 可用 home 目录）能保留 raw 包内部的硬链接。资产传输会跳过本机可重建的下载缓存。脚本从 Git 包内固定清单校验资产和 LeRobot，先核对 raw 的 `manifest.json` 摘要，再核对 2,122 个回合文件和 4 份验收回执。下载镜像中途断网可以重跑镜像命令，流式 tar 需要从头传。成功时才发布最终文件名。
+前三条分别完成可续传的目录复制和逐文件大小、SHA-256 核验。使用 Linux 文件系统（WSL 可用 home 目录）能保留 raw 包内部的硬链接。资产传输会跳过本机可重建的下载缓存。脚本从 Git 包内固定清单校验资产和 LeRobot，先核对 raw 的 `manifest.json` 摘要，再核对 882 个回合文件和 4 份验收回执。下载镜像中途断网可以重跑镜像命令，流式 tar 需要从头传。成功时才发布最终文件名。
 
 在**接收机**加载、验证团队镜像。上传到 GitHub 的协作包里只保存镜像 ID、补丁与步骤。
 
@@ -38,16 +38,28 @@ docker image inspect geniesim-by-collection:a100-20261119 --format '{{.Id}}'
 如只需单个回合，先取索引得到任务、场景、帧数与实际目录，然后只下载该目录。单回合查看与完整包校验是两种操作。
 
 ```bash
-RAW=/data/by/genie_sim/exports/recovered-20261121-structured-ed63df63-raw-trajectories
+RAW=/data/by/genie_sim/exports/initial-scenes-20261126-one-per-task-scene-raw-trajectories
 mkdir -p "$DEST/one-episode"
 scp "$LAB:$RAW/manifest.json" "$DEST/one-episode/manifest.json"
 python3 -c 'import json,sys; print([(e["directory"],e["task"],e["scene"],e["frames"]) for e in json.load(open(sys.argv[1]))["trajectory_index"]])' "$DEST/one-episode/manifest.json"
 rsync -aH --partial "$LAB:$RAW/episode_000002/" "$DEST/one-episode/episode_000002/"
 ```
 
-`episode_000002` 为复采替换的积木入孔回合。完整 raw 的清单 SHA-256 为 `7c09145bb79b4abdbd796f60d079c503c06977951acb04eb6c20f8160b0d5383`。镜像、训练集和官方读取器的完整版本可查 [锁定清单](../release/reference.json)。
+`episode_000002` 对应手机装盒的初始场景 0。原始包、镜像、训练集和官方读取器的版本与校验值见 [锁定清单](../release/reference.json)。
 
-2026-11-22 交接时从实验室重新读取了 20,435 个资产文件、2,122 个回合文件与 4 份数据集回执，大小和 SHA-256 全部匹配。另对正式 LeRobot 目录的 1,094 个文件重新生成了包内清单。15 条轨迹各自的运行源码保存在原始回合里。当前 Git 基线的 22 个核心文件另与服务器工作目录逐字节核对一致。
+每条留存轨迹的运行源码保存在对应原始回合中。扩展场景的留存条目与各自的 LeRobot、原始录制路径登记在实验室的 `/data/by/genie_sim/experiments/cross-scene-20261124/quota1-20261126/delivery.json`。
+
+## 最新的物理验证样例
+
+下表路径相对于实验室的 `/data/by/genie_sim/exports/`。每个训练集有 `official_loader_receipt.json`，原始包有包含 SHA-256 的 `manifest.json`。有服务器访问权限的成员可按需用 `rsync -aH --partial` 复制目录。
+
+| 样例 | 回合与帧数 | LeRobot v2.1 目录 | 原始轨迹目录 |
+| --- | ---: | --- | --- |
+| 手机入盒，两种不同布局 | 2 条，2,852 帧 | `20261126-152211-skills-f805ead3f9e74334-v2-1` | `20261126-152211-skills-f805ead3f9e74334-raw-trajectories` |
+| 手机入盒，显式复执行 | 1 条，1,426 帧 | `20261126-164344-skills-7b3f917abbac4a1c-v2-1` | `20261126-164344-skills-7b3f917abbac4a1c-raw-trajectories` |
+| 目录外 4B 橡皮入盒 | 1 条，1,444 帧 | `20261127-104856-skills-d3a5d4cf1c7e4b16-v2-1` | `20261127-104856-skills-d3a5d4cf1c7e4b16-raw-trajectories` |
+
+橡皮入盒的运行记录在 `/data/by/genie_sim/collection-runs/scene-8b9a75e9d89a185f78ff468d`，其中的 `independent-task-geometry.json` 记录盒内包含关系和稳定性，`plan-execution-audit.json` 记录模型计划的执行步骤。
 
 ## 从官方取得源码、资产和镜像
 
@@ -84,7 +96,7 @@ docker pull registry.agibot.com/genie-sim/geniesim4-data-collection:latest
 (cd genie_sim-main && geniesim data-collection build --china)
 ```
 
-**官方公开示范数据**有自己的任务和采集版本。需要本项目的 15 条 G2 回合请用前述 raw / LeRobot 路径。下载公开集时可在官方数据集页面查看文件清单和说明。[官方示范数据](https://modelscope.cn/datasets/agibot_world/GenieSim3.0-Dataset)
+**官方公开示范数据**有自己的任务和采集版本。前述 raw 和 LeRobot 路径提供本项目留存的初始场景 G2 回合。下载公开集时可在官方数据集页面查看文件清单和说明。[官方示范数据](https://modelscope.cn/datasets/agibot_world/GenieSim3.0-Dataset)
 
 ## 实验室已经遇到的问题
 

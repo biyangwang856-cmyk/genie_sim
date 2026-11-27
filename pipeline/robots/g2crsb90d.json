@@ -37,7 +37,33 @@
   "shape_release_clearance_by_arm_m": {
     "right": 0.006
   },
+  "held_transport_reconnect_slowdown_factor": 2.0,
+  "held_transport_fixture_margin_m": 0.0005,
+  "grasp_candidate_recovery": {
+    "pen_barrel": [
+      {
+        "vertical_offsets_m": [0.0, -0.002],
+        "yaw_offsets_rad": [-0.24, 0.24, 2.901592654, 3.381592654]
+      }
+    ],
+    "cap_body": [
+      {
+        "vertical_offsets_m": [-0.002, 0.0],
+        "yaw_offsets_rad": [0.0, 0.24, -0.24, 3.141592654]
+      }
+    ]
+  },
   "custom_grasp_candidates": {
+    "pen_barrel": {
+      "exact_scene_id": "scene-98387ba3d89d9f3d",
+      "arm": "right",
+      "pose_options": {
+        "vertical_offsets_m": [-0.002],
+        "yaw_offsets_rad": [0.12]
+      },
+      "reference_axial_offset_m": 0.005,
+      "reference_run": "scene-0fce8b09f7bd5aa6d4e66617"
+    },
     "cap_body": {
       "scene_id": "0",
       "arm": "left",
@@ -49,6 +75,30 @@
     }
   },
   "shape_grasp_axial_offset_by_arm": {
+    "left": {
+      "scene_id": "0",
+      "requires_composed_scene": true,
+      "offset_m": 0.01,
+      "release_tcp_x_points_up": true,
+      "contact_height_offsets_m": [0.0, 0.002, -0.002],
+      "lift_probe_distance_m": 0.012,
+      "maximum_release_gap_m": 0.035,
+      "transport_approach_routes_by_scene": {
+        "scene-7395a444b29558af": {
+          "receiver": "benchmark_building_blocks_01e2de23",
+          "workpiece": "benchmark_building_blocks_35570a3b",
+          "source_run": "scene-0ee4cfed2b29ee8d5da5f933",
+          "source_scene_sha256": "9a4258ea7a5684d1d55624b81230c09daafde8a319862c5e24c3eb52201ae8be",
+          "insertion_certificate_sha256": "9e01d95edfc7043e9588e868be4091b2720a2edef834fad56dd8da895813c6a4",
+          "source_waypoint_times_s": [32.175, 33.075],
+          "check_payload_clearance": true,
+          "waypoints_box_xyz_wxyz": [
+            [-0.07027732, 0.14687817, -0.0248166, 0.30544541, -0.00229115, 0.9515882, -0.03431827],
+            [-0.02339146, 0.1722761, -0.02094851, 0.34400987, -0.00005733, 0.93896269, -0.00250386]
+          ]
+        }
+      }
+    },
     "right": {
       "scene_id": "1",
       "offset_m": 0.01,
@@ -139,6 +189,13 @@
     },
     "release_overrides_by_task": {
       "phone_packaging": {
+        "insert": {
+          "method": "native_effort_unload",
+          "speed_rad_s": 0.20,
+          "unload_seconds": 0.30,
+          "unload_min_effort_Nm": 0.20,
+          "max_effort_Nm": 0.45
+        },
         "lid": {
           "method": "native_effort_unload",
           "speed_rad_s": 0.20,

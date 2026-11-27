@@ -52,7 +52,7 @@ def center(robot,name):
     return (pose(robot,name)@np.r_[(low+high)/2,1])[:3]
 
 def custom_grasps(robot,name,axis=0,offset=None,vertical_offsets_m=(0.,.002,-.002),
-                  yaw_offsets_rad=(0.,np.pi,-.12,.12)):
+                  yaw_offsets_rad=(0.,np.pi,-.12,.12),longitudinal_offsets_m=(0.,)):
     t=pose(robot,name); low,high=local_box(robot,name)
     c=(low+high)/2 if offset is None else np.asarray(offset)
     c=(t@np.r_[c,1])[:3]
@@ -64,7 +64,8 @@ def custom_grasps(robot,name,axis=0,offset=None,vertical_offsets_m=(0.,.002,-.00
         x=Rotation.from_rotvec(np.array([0,0,angle])).apply(long)
         z=np.array([0.,0,-1.]);y=np.cross(z,x)
         for dz in vertical_offsets_m:
-            target=np.eye(4);target[:3,:3]=np.column_stack([x,y,z]);target[:3,3]=c+[0,0,dz];poses.append(target)
+            for dx in longitudinal_offsets_m:
+                target=np.eye(4);target[:3,:3]=np.column_stack([x,y,z]);target[:3,3]=c+dx*long+[0,0,dz];poses.append(target)
     return np.asarray(poses)
 
 def packing_lid_grasps(robot,name):
@@ -123,9 +124,19 @@ def detach_planner_payload(robot,arm):
     phase='packing_payload_detached' if robot.scene_info['task_template']=='phone_packaging' else 'planner_payload_detached'
     note(robot,phase,arm=arm,receipt=receipt)
 
+def require_payload_proxy(robot, name, arm, phase):
+    prim = robot.get_object_prim_path(name)
+    link = 'attached_object' if arm == 'right' else 'left_attached_object'
+    paths = robot.client.command_any({'command': 'ProjectSnapshot'}).get('planner_attachments', {}).get(link, [])
+    passed = bool(paths) and all(path == prim or path.startswith(prim + '/') for path in paths)
+    note(robot, phase, object=name, arm=arm, paths=paths, passed=passed)
+    if not passed:
+        raise RuntimeError('Measured payload is absent from the active planner link: ' + name)
+
+
 def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=False,
          pinch_axis_offset_m=0.,release_tcp_x_points_up=False,pinch_height_offsets_m=(0.,.002,-.002),
-         custom_pose_options=None):
+         custom_pose_options=None,lift_probe_distance_m=None,lift_recovery=None,lift_tracking_recovery=None):
     kinematic=robot.client.command_any({'command':'ProjectKinematicSnapshot'})
     note(robot,'model_snapshot',snapshot=kinematic)
     info=robot.scene_info['layout'][name];interaction=robot.interactions.get(info['usd'],{})
@@ -144,6 +155,9 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
     before=center(robot,name)
     if pinch_axis_offset_m and (not goal_topdown or not annotations or offset is not None):
         raise ValueError('An axial pinch offset requires a release-compatible grasp on an annotated asset')
+    # Native loading can synthesize a default annotation. Honor the caller's
+    # measured geometry when it explicitly selects a procedural grasp.
+    use_annotated_grasp = bool(annotations) and offset is None and (goal_topdown or custom_pose_options is None)
     # Asset TCP is now the wrist-aligned 185 mm frame, not the legacy rotated TCP.
     legacy=np.array([[0.,0.,1.],[-1.,0.,0.],[0.,-1.,0.]])
     robot.robot.robot_gripper_2_grasp_gripper=legacy@Rotation.from_rotvec([0,0,-np.pi/2 if arm=='left' else np.pi/2]).as_matrix()
@@ -153,12 +167,17 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
     contact_frame_offset=.185-.2292200029
     # The native grasp prefilter applies lift offsets in the tool frame, where
     # the calibrated lid approach points down. Command the lift in world space.
-    pick_up_distance=0. if lid_grasp else (.012 if phone_grasp else .10)
+    lift_probe = .012 if phone_grasp else lift_probe_distance_m
+    if phone_grasp:
+        lift_recovery = None
+    if lift_probe is not None and (not np.isfinite(lift_probe) or not 0. < lift_probe < .10):
+        raise ValueError('Grasp lift probe must be between zero and the full lift distance')
+    pick_up_distance=0. if lid_grasp else (lift_probe if lift_probe is not None else .10)
     config=GraspConfig(grasp_offset=contact_frame_offset,pre_grasp_offset=.09,pick_up_distance=pick_up_distance,
         # Legacy up-side filtering tests the old rotated TCP's Y axis.
         # Reachability, collision checks and native humanlike ranking remain on.
         flip_grasp=False,disable_upside_down=False,action_description=description('Pick up '+name))
-    if annotations and offset is None:
+    if use_annotated_grasp:
         if goal_topdown:
             geometry=json.loads((Path(os.environ.get('GENIE_RUN_SOURCE',ROOT))/'insertion-target.json').read_text())
             from insertion_physics import measure,certificate
@@ -219,7 +238,7 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
                     return np.asarray(poses)[mask],np.asarray(widths)[mask]
                 config.grasp_pose_filter=downstream_filter
         else:config.grasp_pose_filter=top_down_grasps
-    if not annotations or offset is not None:
+    if not use_annotated_grasp:
         config.disable_upside_down=False
         if phone_grasp:
             # The native contact traces show the straight jaws lift from both
@@ -247,7 +266,9 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
         low,high=local_box(robot,name)
         # Width is a candidate opening, never a success label or physical pin.
         config.grasp_width=np.full(len(config.grasp_pose),min(.085,max(.018,np.sort(high-low)[1]+.01)))
-    note(robot,'pick_start',object=name,arm=arm,annotation_labels=list(annotations),before_pose=pose(robot,name),contact_frame_offset_m=contact_frame_offset)
+    note(robot,'pick_start',object=name,arm=arm,annotation_labels=list(annotations),before_pose=pose(robot,name),
+         grasp_candidate_source='native_annotation' if use_annotated_grasp and not goal_topdown else 'computed_world_pose',
+         contact_frame_offset_m=contact_frame_offset)
     # The grasp target must be contactable. Only its planner proxy is excluded;
     # PhysX collision/contact remains active for the actual grasp and lift.
     original_ik=robot.robot.solve_ik
@@ -283,14 +304,40 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
         robot.add_objs_to_obstacle([target_path])
         if packing_grasp:
             robot.client.command_any({'command': 'ProjectTrackObjects', 'paths': {}})
-    if phone_grasp and ok:
+    if lift_probe is not None and ok:
         probe_lift = float(center(robot, name)[2] - before[2])
-        retained = .006 <= probe_lift <= .022
-        note(robot, 'phone_grasp_probe', measured_lift_m=probe_lift, commanded_lift_m=.012, passed=retained)
+        retained = .5 * lift_probe <= probe_lift <= lift_probe + .01
+        probe_phase = 'phone_grasp_probe' if phone_grasp else 'grasp_lift_probe'
+        note(robot, probe_phase, measured_lift_m=probe_lift, commanded_lift_m=lift_probe, passed=retained)
         if retained:
             lift_goal = pose(robot, name).copy()
+            if not phone_grasp:
+                require_payload_proxy(robot, name, arm, 'grasp_probe_payload_attachment')
+                held = np.linalg.inv(robot.get_ee_pose(arm)) @ lift_goal
             lift_goal[2, 3] += .10 - probe_lift
-            ok = move(robot, name, arm, lift_goal, 'phone_full_lift_after_probe')
+            phase = 'phone_full_lift_after_probe' if phone_grasp else 'grasp_full_lift_after_probe'
+            from skill_executor import SkillFailure
+            try:
+                ok = move(robot, name, arm, lift_goal, phase)
+            except SkillFailure as exc:
+                if lift_recovery is None or exc.kind != 'native_action_failed_before_rollback':
+                    raise
+                ok = False
+            if not ok and lift_recovery is not None:
+                lift_recovery(lift_goal, held)
+                ok = True
+            if ok and not phone_grasp:
+                expected = robot.get_ee_pose(arm) @ held
+                actual = pose(robot, name)
+                slip = float(np.linalg.norm(expected[:3, 3] - actual[:3, 3]))
+                tilt = float(Rotation.from_matrix(expected[:3, :3].T @ actual[:3, :3]).magnitude())
+                ok = slip <= .008 and tilt <= .08
+                note(robot, 'grasp_probe_full_lift_tracking', measured_slip_m=slip, measured_slip_rad=tilt, passed=ok)
+                if not ok:
+                    if lift_tracking_recovery is None:
+                        raise SkillFailure('probed_grasp_lift_exhausted', {'slip_m': slip, 'slip_rad': tilt})
+                    lift_tracking_recovery(actual, {'position_error_m': slip, 'rotation_error_rad': tilt})
+                    ok = True
         else:
             ok = False
     elif lid_grasp and ok:
@@ -301,21 +348,22 @@ def pick(robot,name,arm,axis=0,offset=None,goal_topdown=False,goal_lookahead=Fal
     lifted=after[2]-before[2]>.055
     note(robot,'pick_result',object=name,arm=arm,api_success=bool(ok),lift_m=float(after[2]-before[2]),object_pose=pose(robot,name),ee_pose=robot.get_ee_pose(arm))
     if packing_grasp and ok and lifted:
-        snapshot=robot.client.command_any({'command':'ProjectSnapshot'})
-        link='attached_object' if arm=='right' else 'left_attached_object'
-        paths=snapshot.get('planner_attachments',{}).get(link,[])
-        passed=bool(paths) and all(path==target_path or path.startswith(target_path+'/') for path in paths)
-        note(robot,'packing_payload_attachment_gate',object=name,arm=arm,paths=paths,passed=passed)
-        if not passed:raise RuntimeError('Measured packing payload is absent from the active planner link: '+name)
+        require_payload_proxy(robot, name, arm, 'packing_payload_attachment_gate')
     note(robot,'model_snapshot_after_grasp',snapshot=robot.client.command_any({'command':'ProjectKinematicSnapshot'}))
     return bool(ok and lifted)
 
-def move(robot,name,arm,target,text):
+def move(robot,name,arm,target,text,*,slowdown_factor=1.):
+    """Plan a native collision-checked motion at the requested execution speed."""
+    if not np.isfinite(slowdown_factor) or slowdown_factor < 1.:
+        raise ValueError('Native motion slowdown must be finite and at least one')
     candidates=np.asarray(target)
     if candidates.ndim==2:candidates=candidates[None]
     ok=robot.move_actor_to_target_pose(name,candidates,arm=arm,
-        move_config=MoveConfig(action_description=description(text)))
-    note(robot,text,object=name,arm=arm,api_success=bool(ok),target=target,actual=robot.get_ee_pose(arm) if name=='gripper' else pose(robot,name))
+        move_config=MoveConfig(action_description=description(text),
+                               extra_params={'slowdown_factor': float(slowdown_factor)}))
+    note(robot,text,object=name,arm=arm,api_success=bool(ok),target=target,
+         slowdown_factor=float(slowdown_factor),
+         actual=robot.get_ee_pose(arm) if name=='gripper' else pose(robot,name))
     return bool(ok)
 
 def unload_gripper(robot, arm, profile):
@@ -344,11 +392,38 @@ def unload_gripper(robot, arm, profile):
         raise RuntimeError('Grip unloading did not advance the requested physical ticks')
 
 
-def release(robot,arm,gentle=False,profile=None):
+def separate_gripper_at_low_effort(robot, arm, check):
+    """Give a fragile payload time to clear before fully opening the jaws."""
+    contract = robot.client.command_any({'command': 'ProjectGripperConfiguration'})['grippers'][arm]
+    name = contract['actuator']
+    index = contract['joint_names'].index(name)
+    closed = float(contract['closed_positions'][index])
+    span = float(contract['opened_positions'][index]) - closed
+    if abs(span) < .08:
+        raise ValueError('Native actuator has insufficient separation travel')
+    opening = (float(robot.get_joint_positions()[name]) - closed) / span
+    for increment in (.035, .075):
+        target = float(np.clip(opening + increment / abs(span), 0., 1.))
+        result = robot.control_gripper(arm=arm, opening_ratio=target, speed=.075, max_effort=.12,
+                                       mode='velocity', tolerance=.002, timeout=3.,
+                                       minimum_duration=.05, completion='target')
+        robot.client.run_step(24)
+        passed, witness = check()
+        note(robot, 'low_effort_gripper_separation', arm=arm, opening_ratio=target,
+             result=result, passed=passed, **witness)
+        if passed:
+            return
+    from skill_executor import SkillFailure
+    raise SkillFailure('payload_not_cleared_during_release', witness)
+
+
+def release(robot,arm,gentle=False,profile=None,separation_check=None):
     native_modes={'native_velocity':'velocity','native_position':'position'}
     method=profile.get('method') if profile else None
     if gentle and method == 'native_effort_unload':
         unload_gripper(robot,arm,profile)
+        if separation_check is not None:
+            separate_gripper_at_low_effort(robot, arm, separation_check)
         method = 'native_velocity'
     mode=native_modes.get(method)
     if gentle and mode:
@@ -622,7 +697,10 @@ def execute_task(robot):
         if request.get('execution_mode')=='structured':
             import sys
             modules={}
-            for name in ['robot_adapters','skill_registry','task_geometry','skill_executor','structured_planner','qwen_backend']:
+            names=['robot_adapters','skill_registry','task_geometry','skill_executor','structured_planner','qwen_backend']
+            names.extend(name for name in ['skill_recovery','goal_composition','skill_capabilities','hinge_fixture','rotation_probe']
+                         if name in sys.modules and (request_path.parent/(name+'.py')).exists())
+            for name in names:
                 module=sys.modules[name];path=Path(module.__file__)
                 modules[name]={'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
             note(robot,'skill_modules_loaded',modules=modules)
@@ -635,6 +713,13 @@ def execute_task(robot):
                 raise SkillFailure('native_action_failed_before_rollback',{'stored_state':stored_state})
 
             client.playback=reject_rollback
-            try:return run_structured(robot,sys.modules[__name__],request)
+            try:
+                if task=='probe_open_hinged_lid' and robot.scene_info.get('project_hinge_probe'):
+                    from hinge_fixture import execute_probe
+                    return execute_probe(robot,sys.modules[__name__],request)
+                if request['task_id']=='probe_rotate_held_about_tool' and robot.scene_info.get('project_rotation_probe'):
+                    from rotation_probe import execute_probe
+                    return execute_probe(robot,sys.modules[__name__],request)
+                return run_structured(robot,sys.modules[__name__],request)
             finally:client.playback=original_playback
     return {'phone_packaging':phone,'insert_building_block':block,'put_the_cap_on_the_pen_new':pen}[task](robot)

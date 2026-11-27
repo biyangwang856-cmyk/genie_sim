@@ -27,7 +27,19 @@ def read_native_summary(job_id, root=ROOT):
     if job.get("job_id") != job_id:
         return None
     return {"job_id": job_id, "status": job["status"], "success_counts": job.get("success_counts", {}),
-            "attempt_count": len(job.get("attempts", [])), "dataset": job.get("dataset")}
+            "attempt_count": len(job.get("attempts", [])), "dataset": job.get("dataset"),
+            "worker_heartbeat_unix":job.get("worker_heartbeat_unix"),
+            "budget_reason":job.get("budget_reason"), "storage_wait":job.get("storage_wait"),
+            "automatic_admission":job.get("automatic_admission",False),
+            "scene_outcome":job.get("scene_outcome"),"raw_trajectory_path":job.get("raw_trajectory_path"),
+            "partial_dataset":job.get("partial_dataset"),"trajectory_outcome":job.get("trajectory_outcome"),
+            "phase":job.get("phase"),"missing_skills":job.get("missing_skills",[]),
+            "candidate_apis":job.get("candidate_apis",[]),"skill_details":job.get("skill_details",{}),
+            "missing_robot_capabilities":job.get("missing_robot_capabilities",[]),
+            "missing_verifiers":job.get("missing_verifiers",[]),"failure":job.get("failure"),
+            "code":job.get("code"),"validation":job.get("validation"),
+            "collection_wait":job.get("collection_wait"),"reason":job.get("reason"),
+            "runtime_capabilities":job.get("runtime_capabilities")}
 
 
 class Jobs:
@@ -89,14 +101,23 @@ class Jobs:
                     raise RuntimeError("A worker already holds this queue") from exc
                 raise
             with self.db() as db:
+                running=db.execute("SELECT id,operation,payload,native_id FROM jobs WHERE state='running'").fetchall()
                 db.execute("UPDATE jobs SET state='interrupted', updated=? WHERE state='running'", (time.time(),))
+                for row in running:
+                    if row["operation"]!="isaac_physx":
+                        continue
+                    native=read_native_summary(row["native_id"]) if row["native_id"] else None
+                    # Native execution only starts after the durable id callback.
+                    if not row["native_id"] or (native and native.get("automatic_admission")
+                                                and native.get("status")!="stopped_by_user"):
+                        db.execute("UPDATE jobs SET state='queued', updated=? WHERE id=?",(time.time(),row["id"]))
             yield
 
     def run_next(self, registry):
         """Call inside worker(). Orphaned jobs retain their native ID and are never blindly replayed."""
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT id,operation,payload FROM jobs WHERE state='queued' ORDER BY rowid LIMIT 1").fetchone()
+            row = db.execute("SELECT id,operation,payload,native_id FROM jobs WHERE state='queued' ORDER BY rowid LIMIT 1").fetchone()
             if row is None:
                 return False
             job_id = row["id"]
@@ -109,7 +130,12 @@ class Jobs:
                 db.execute("UPDATE jobs SET native_id=?, updated=? WHERE id=?", (native_id, time.time(), job_id))
 
         try:
-            result = registry.invoke(row["operation"], json.loads(row["payload"]), native_job)
+            payload=json.loads(row["payload"])
+            if row["operation"]=="isaac_physx" and row["native_id"]:
+                from natural_backend import resume
+                result=resume(row["native_id"],execute=payload["execute"])
+            else:
+                result = registry.invoke(row["operation"], payload, native_job)
             encoded = json.dumps(result, ensure_ascii=False, allow_nan=False)
             state = "finished"
         except UnsupportedRequest as exc:

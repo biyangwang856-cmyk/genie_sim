@@ -1,0 +1,5 @@
+{
+  "task_id": "place_in_container",
+  "description": "Place one rigid item inside an upward-open container on a tabletop",
+  "dynamic": true
+}

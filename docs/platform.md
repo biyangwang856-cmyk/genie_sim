@@ -19,7 +19,7 @@ curl -i -X POST http://127.0.0.1:8786/v1/jobs -H 'Content-Type: application/json
 curl -s http://127.0.0.1:8786/v1/jobs/<id>
 ```
 
-`execute=false` 为默认值，真实调用语言模型和 Embedding，准备计划。正式申请将它设为 `true` 并使用新的幂等键。当前每个任务在场景 `0` 目标为 3 条，场景 `1` 目标为 2 条，可只选择其中一个场景。未显式填写 `task_ids` 时由 Qwen 在已登记任务中选择。每次新配方仍使用原有物理验收与难点复核机制。
+`execute=false` 为默认值，真实调用语言模型和 Embedding，准备计划。正式申请将它设为 `true` 并使用新的幂等键。默认双场景采集在场景 `0` 目标为 3 条，在场景 `1` 目标为 2 条，可只选择其中一个场景。未显式填写 `task_ids` 时由 Qwen 识别任务目标。每次新配方仍使用原有物理验收与难点复核机制。
 
 | 路径 | 输入 | 响应 |
 | --- | --- | --- |
@@ -32,6 +32,65 @@ curl -s http://127.0.0.1:8786/v1/jobs/<id>
 工作队列使用 SQLite。`queued` 等待 Worker，`running` 已被领取，`finished` 表示原生调用已返回。请读 `result.status` 判断业务结果。只有 `complete` 并带已验收的 `result.dataset` 才能发布训练数据。`skill_plans_prepared` 只有计划。`needs_hardpoint_check` 等待同版配方难点复核。`failed` 保留错误类别。Worker 在物理执行前持久化原生作业 ID，查询时可获得收集计数和服务端数据路径。该路径供平台有权限的文件服务读取。
 
 相同 `Idempotency-Key` 加相同请求返回同一 ID，重用键并改变参数返回 `409`。无效 JSON 或字段返回 `400`，未登记的机器人、任务、场景或后端返回 `422`。每个状态目录同时允许一个 Worker。意外中断后，重新启动 Worker 将上次运行中的平台作业标为 `interrupted`，保留原生 ID。可在实验室据此检查实际进程、原生日志和已入库回合，再按采集手册接续。`work --once` 适合已有调度器轮询。
+
+## 轨迹配额与重复策略
+
+`trajectory_request.total_episodes` 是一个任务的总条数。`successes_per_scene` 是每个场景的配额。两者同时给出时，数量须与请求的场景数相符。`distinct_dimensions` 指定场景之间必须有差异的维度。`lineage_id` 用于在同一训练数据谱系下比较不同作业的动作。
+
+```json
+{
+  "instruction": "在两个不同的现有场景各采一条手机装盒轨迹",
+  "task_id": "phone_packaging",
+  "scene_request": {"mode": "existing", "scene_ids": ["0", "1"]},
+  "trajectory_request": {
+    "total_episodes": 2,
+    "duplicate_policy": "distinct",
+    "distinct_dimensions": ["layout"]
+  },
+  "execute": true
+}
+```
+
+`distinct` 是默认策略，按实际执行的场景和物理运动判重。`allow` 允许独立实跑的运动相同，每次仍需有新的运行回执。`replay` 需要 `reference_run`，从已验收的冻结配方复执行，并比较新的实测运动与参考回合。参考回合需保留原场景、源码、首次计划、镜像、种子、运行槽位和独立验收回执。配额不足时，`native.trajectory_outcome` 显示已发布数和缺额。
+
+## 技能缺口与自动验证
+
+自然语言可提出较窄的目标，例如“只把手机放进盒底，内托和盒盖留在原位”。后台通过已有装盒资产和受支持的物理关系生成技能计划，原始记录会核查手机包含关系和附带的保留条件。
+
+对于目录外的桌面抓放目标，例如“采集一条把优盘放进白色中空包装盒的轨迹”，可省略 `task_id`。后台检索刚性工件和开口容器，从容器的原始碰撞几何计算开口、深度和支撑面。随后复用抓取、持物移动、释放和撤手技能。验收从原始记录复核松爪后工件整体位于盒内并保持稳定。
+
+`ASSET_NOT_FOUND` 表示索引中没有找到匹配资产。`ASSET_GEOMETRY_INCOMPATIBLE` 表示现有候选未满足抓放几何要求。`missing_assets` 返回对象或几何缺口。涉及开盖、多工件、工具等操作时，后台检查对应任务技能。
+
+原生技能可通过自然语言或 `skill_goal` 提交。铰链微波炉的候选映射使用 `RobotAPI.open`。下面的请求准备能力映射和试验场景。`execute=true` 时，服务器执行隔离物理验证，并在测量通过后发布与代码、机器人和资产对应的证书。自然语言中的物理开启端由资产绑定解析成关节的有向限位。
+
+```json
+{
+  "instruction": "抓住把手，将微波炉门打开到开启限位",
+  "skill_goal": {
+    "skill": "open_hinged_lid",
+    "actor": "benchmark_microwave_oven_003",
+    "target_limit": "min"
+  },
+  "execute": false
+}
+```
+
+状态查询返回候选接口、缺少的技能或观测、验证阶段和回执。没有可用技能时返回 `SKILL_NOT_REGISTERED` 和 `missing_skills`。已有接口需要满足的装配关系、控制方式和物理观测由能力映射声明。
+
+`rotate_held_about_tool` 通过 `RobotAPI.rotate_actor` 验证持物旋转。当前证书适用于 `g2crsb90d`、右臂、已标注的手机和绕世界 +Z 的 +15° 旋转。使用 `completion: "pack_phone"` 时，运行时先核对同一范围的证书，物理转腕通过后，从实测夹持状态生成后续装盒计划。证书、续执行见证和失败原因可从该作业的 `runtime_capabilities` 与 `validation` 读取。
+
+```json
+{
+  "instruction": "拿起已标注的手机，保持工具位置绕世界 +Z 转动 +15 度，然后只把手机放入盒底，内托和盒盖留在原位。",
+  "skill_goal": {
+    "skill": "rotate_held_about_tool",
+    "actor": "benchmark_phone_000",
+    "angle_deg": 15,
+    "completion": "pack_phone"
+  },
+  "execute": false
+}
+```
 
 ## 后续怎样接另一个后端
 
@@ -56,4 +115,4 @@ registry.register("mujoco", collect_with_mujoco, scope={
 | VR 遥操作、ROS 控制、MoveIt 规划 | `teleoperation`、`ros_control`、`moveit_planning` | 录制、会话或轨迹计划引用 |
 | 基准评测、Agent2Act、Dream、RLinf | `benchmark`、`agent2act`、`dream`、`rl_training` | 评测、动作计划、预测或检查点引用 |
 
-`scene_admission` 是团队预留协议。后续实现需绑定场景与资产版本、抓取和装配几何、机器人可达性与避碰，并验收一条完整物理轨迹。当前用户提交 `scenes:["2"]` 会收到缺失场景。上游源码中可独立启动的某模块，其在本平台的状态仍以 `capabilities` 为准。
+`/v1/jobs` 的 `scene_request` 接受已有官方任务场景和库内资产组合，并进入自动试采与验收。独立的 `/v1/extensions/scene_admission` 仍保留作扩展接口。完整参数、资源和复现命令见 [跨场景采集](cross-scene.md)。

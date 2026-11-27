@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from batch_collect import audit_recording
-from collection_control import ROOT, SOCKET, STORAGE
+from collection_control import COLLECTION_SLOTS, ROOT, SOCKET, STORAGE
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
     if run.parent != STORAGE/'collection-runs':
         parser.error('Run outside the project collection root')
     launch = json.loads((run/'launch.json').read_text())
-    if launch.get('collection_slot') not in ('primary','secondary') or launch.get('container') != 'genie-by-'+run.name:
+    if launch.get('collection_slot') not in COLLECTION_SLOTS or launch.get('container') != 'genie-by-'+run.name:
         parser.error('Launch receipt does not identify a project collection')
 
     env = dict(os.environ, DOCKER_HOST=SOCKET)

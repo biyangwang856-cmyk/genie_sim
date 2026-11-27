@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "block-room",
+      "request": {
+        "instruction": "在新的室内背景中重新摆放任务物体。把正确的星形积木插入对应的星形孔，松爪后让积木稳定。采集1条完整成功轨迹。",
+        "task_id": "insert_building_block",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "home__home_1__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710424
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "phone-room",
+      "request": {
+        "instruction": "在新的室内背景中重新摆放任务物体。把手机放入盒底，按任务顺序放入内托并盖好盒盖。采集1条完整成功轨迹。",
+        "task_id": "phone_packaging",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "home__home_1__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710424
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "pen-room",
+      "request": {
+        "instruction": "在新的室内背景中重新摆放任务物体。双臂分别拿笔和笔帽，套上笔帽，再把盖好的笔放回桌上。采集1条完整成功轨迹。",
+        "task_id": "put_the_cap_on_the_pen_new",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "home__home_1__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710424
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "block-table",
+      "request": {
+        "instruction": "换用库内另一张桌子和棚拍背景，重新摆放任务物体。把正确的星形积木插入对应的星形孔，松爪后让积木稳定。采集1条完整成功轨迹。",
+        "task_id": "insert_building_block",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_023",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710430
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "phone-table",
+      "request": {
+        "instruction": "换用库内另一张桌子和棚拍背景，重新摆放任务物体。把手机放入盒底，按任务顺序放入内托并盖好盒盖。采集1条完整成功轨迹。",
+        "task_id": "phone_packaging",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_023",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710430
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "pen-table",
+      "request": {
+        "instruction": "换用库内另一张桌子和棚拍背景，重新摆放任务物体。双臂分别拿笔和笔帽，套上笔帽，再把盖好的笔放回桌上。采集1条完整成功轨迹。",
+        "task_id": "put_the_cap_on_the_pen_new",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_023",
+          "variation": [
+            "background",
+            "support",
+            "layout"
+          ],
+          "seed": 710430
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "block-clutter",
+      "request": {
+        "instruction": "重新组合桌面、背景和任务物体，在操作区旁加入干扰物。把正确的星形积木插入对应的星形孔，松爪后让积木稳定。采集1条完整成功轨迹。",
+        "task_id": "insert_building_block",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout",
+            "distractors"
+          ],
+          "seed": 710438
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "phone-clutter",
+      "request": {
+        "instruction": "重新组合桌面、背景和任务物体，在操作区旁加入干扰物。把手机放入盒底，按任务顺序放入内托并盖好盒盖。采集1条完整成功轨迹。",
+        "task_id": "phone_packaging",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout",
+            "distractors"
+          ],
+          "seed": 710438
+        },
+        "successes_per_scene": 1
+      }
+    },
+    {
+      "id": "pen-clutter",
+      "request": {
+        "instruction": "重新组合桌面、背景和任务物体，在操作区旁加入干扰物。双臂分别拿笔和笔帽，套上笔帽，再把盖好的笔放回桌上。采集1条完整成功轨迹。",
+        "task_id": "put_the_cap_on_the_pen_new",
+        "robot_id": "g2crsb90d",
+        "scene_request": {
+          "mode": "compose_from_library",
+          "scene_count": 1,
+          "background_id": "common__hdr_studio__background",
+          "support_id": "benchmark_table_000",
+          "variation": [
+            "background",
+            "support",
+            "layout",
+            "distractors"
+          ],
+          "seed": 710438
+        },
+        "successes_per_scene": 1
+      }
+    }
+  ]
+}

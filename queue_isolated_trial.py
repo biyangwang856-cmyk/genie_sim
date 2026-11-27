@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from batch_collect import recipe_sources, verified_recipe
-from collection_control import ROOT, SOCKET, STORAGE, running_collections
+from collection_control import COLLECTION_SLOTS, ROOT, SLOT_BUSY_EXIT, SOCKET, STORAGE, running_collections
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
     parser.add_argument('--scene', choices=['0', '1'], required=True)
     parser.add_argument('--seed', type=int, required=True)
     parser.add_argument('--variant', required=True)
-    parser.add_argument('--slot', choices=['primary', 'secondary'], default='secondary')
+    parser.add_argument('--slot', choices=COLLECTION_SLOTS, default='secondary')
     parser.add_argument('--after', type=Path)
     parser.add_argument('--source-run', type=Path)
     args = parser.parse_args()
@@ -59,7 +59,14 @@ def main():
         if not verified_recipe(args.job.parent, task_id, args.scene, recipe_sources(launch)):
             raise ValueError('The source for a quota repeat needs a passing hardpoint review')
         command += ['--source-run', str(args.source_run)]
-    subprocess.run(command, env=env, check=True)
+    while True:
+        result = subprocess.run(command, env=env)
+        if result.returncode != SLOT_BUSY_EXIT:
+            result.check_returncode()
+            break
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f'{args.slot} slot did not have launch capacity')
+        time.sleep(15)
 
     run = STORAGE/'collection-runs'/label
     print(f'STARTED {run}', flush=True)

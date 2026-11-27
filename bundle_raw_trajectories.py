@@ -102,24 +102,27 @@ def episode_plan(dataset_source, final_source):
     return run, files, originals, info
 
 
-def copy_verified(source, dest, expected=None):
+def copy_verified(source, dest, expected=None, *, link=False):
     dest.parent.mkdir(parents=True, exist_ok=True)
     checksum = digest(source)
     size = source.stat().st_size
     if expected and (checksum, size) != (expected['sha256'], expected['bytes']):
         raise ValueError(f'Raw archive checksum changed: {source}')
-    shutil.copy2(source, dest)
+    if link:
+        os.link(source,dest)
+    else:
+        shutil.copy2(source,dest)
     if dest.stat().st_size != size or digest(dest) != checksum:
         raise OSError(f'Copy verification failed: {dest}')
     return {'sha256': checksum, 'bytes': size}
 
 
-def copy_episode(staging, run, files, originals, episode):
+def copy_episode(staging, run, files, originals, episode, *, link=False):
     root = staging / episode['directory']
     contents = {}
     for relative, source in sorted(files.items()):
         if not source.is_symlink():
-            contents[relative] = copy_verified(source, root / relative, originals.get(relative))
+            contents[relative] = copy_verified(source, root / relative, originals.get(relative),link=link and relative.parts[0] in ('raw','raw-aligned'))
     for relative, source in sorted(files.items()):
         if source.is_symlink():
             target = source.resolve().relative_to(run)
@@ -136,8 +139,8 @@ def copy_episode(staging, run, files, originals, episode):
     return sum(row['bytes'] for row in contents.values() if 'same_file_as' not in row)
 
 
-def bundle(dataset):
-    dataset = dataset.resolve()
+def bundle(dataset, *, link=False):
+    dataset = Path(dataset).resolve()
     if dataset.parent != EXPORTS or not dataset.name.endswith('-v2-1'):
         raise ValueError('Select a published LeRobot dataset in the project exports directory')
     final = read_json(dataset / 'finalization.json')
@@ -157,8 +160,14 @@ def bundle(dataset):
 
     output = EXPORTS / (dataset.name.removesuffix('-v2-1') + '-raw-trajectories')
     if output.exists():
+        manifest=read_json(output/'manifest.json')
+        if (manifest['training_dataset']==str(dataset) and manifest['episodes']==len(plans)
+            and manifest['dataset_receipts']['finalization.json']['sha256']==digest(dataset/'finalization.json')):
+            return {'archive':str(output),'episodes':manifest['episodes'],'frames':manifest['frames'],
+                    'bytes':manifest['copied_episode_file_bytes']}
         raise FileExistsError(output)
-    size = sum(p.stat().st_size for _, files, _, _ in plans for p in files.values() if not p.is_symlink())
+    size = sum(p.stat().st_size for _, files, _, _ in plans for rel,p in files.items()
+               if not p.is_symlink() and (not link or rel.parts[0] not in ('raw','raw-aligned')))
     if shutil.disk_usage(output.parent).free < size:
         raise OSError(f'Insufficient storage for {size} bytes of raw trajectories')
     staging = output.parent / f'.{output.name}-staging-{uuid.uuid4().hex[:10]}'
@@ -166,22 +175,26 @@ def bundle(dataset):
     try:
         receipts = {name: copy_verified(dataset / name, staging / 'dataset-receipts' / name)
                     for name in DATASET_RECEIPTS}
-        copied = sum(copy_episode(staging, *plan) for plan in plans)
+        copied = sum(copy_episode(staging, *plan,link=link) for plan in plans)
         manifest = {
             'training_dataset': str(dataset),
             'episodes': final['episodes'],
             'frames': loader['frames'],
             'copied_episode_file_bytes': copied,
             'all_files_checksum_verified': True,
+            'storage_method':'local_hardlinks_for_recordings' if link else 'independent_copy',
             'dataset_receipts': receipts,
             'trajectory_index': [p[3] for p in plans],
         }
         (staging / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
-        (staging / 'README.md').write_text(README, encoding='utf-8')
+        note='\n服务器归档中的录制文件使用同盘硬链接。复制此目录后可独立读取。\n' if link else ''
+        (staging / 'README.md').write_text(README+note, encoding='utf-8')
         staging.rename(output)
     except Exception as exc:
         raise RuntimeError(f'Raw bundle interrupted. Partial data is at {staging}') from exc
-    print(json.dumps({'archive': str(output), 'episodes': len(plans), 'frames': loader['frames'], 'bytes': copied}), flush=True)
+    receipt={'archive': str(output), 'episodes': len(plans), 'frames': loader['frames'], 'bytes': copied}
+    print(json.dumps(receipt), flush=True)
+    return receipt
 
 
 if __name__ == '__main__':

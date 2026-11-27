@@ -3,7 +3,8 @@ import argparse,hashlib,json,time
 from pathlib import Path
 from collections import Counter
 
-ROOT=Path('/home/vipuser/by/genie_sim');STORAGE=Path('/data/by/genie_sim')
+from robot_adapters import ROOT
+STORAGE=Path('/data/by/genie_sim')
 
 def read_json(path,errors):
     path=Path(path)
@@ -73,7 +74,11 @@ def report(job_path,*,print_report=True):
         for p in path.parent.glob('plans/*/*/llm-plan-*.json'):
             add_receipt(read_json(p,metadata_errors).get('receipt',{}))
         for retrieval in prepared.get('asset_retrieval',{}).values():add_receipt(retrieval.get('receipt',{}))
+        for scenes in prepared.get('scene_preflight',{}).values():
+            for key in ('background_retrieval','support_retrieval'):
+                for receipt in (scenes.get(key) or {}).get('receipts',[]):add_receipt(receipt)
         add_receipt(prepared.get('intent_receipt') or {})
+        for receipt in prepared.get('intent_receipts',[]):add_receipt(receipt)
         pending.extend(h['source_job'] for h in prepared.get('preparation_history',[]) if h.get('source_job'))
     usage=summarize_usage(receipts)
     project_receipts=dict(receipts);api_log=ROOT/'jobs/api-receipts.jsonl'
@@ -118,7 +123,7 @@ def report(job_path,*,print_report=True):
         'accepted_per_completed_attempt':accepted/len(completed) if completed else None,
         'first_attempt_denominator':'earliest production launch in the surviving ledger per task/scene; calibration and unlinked runs reported separately',
         'retry_success_denominator':'completed task/scene groups with at least one admitted episode, divided by all completed task/scene groups',
-        'retry_outcomes_by_task_scene':[{**row,'scene_goal_met':job['success_counts'][task][scene]>0} for (task,scene),row in first.items()],
+        'retry_outcomes_by_task_scene':[{**row,'scene_goal_met':job['success_counts'][task].get(scene,0)>0} for (task,scene),row in first.items()],
         'task_scene_outcomes':outcomes,
         'step_failure_counts':dict(Counter(f for a in attempts for f in a['recorded_step_failures'])),
         'completed_episode_wall_seconds':sum(a['duration_s'] for a in completed),'model_api_usage':usage,
@@ -130,6 +135,8 @@ def report(job_path,*,print_report=True):
         'historical_debug_runs_total':len(historical),'historical_debug_runs':historical,'metadata_errors':metadata_errors,
         'launch_failures':job.get('launch_failures',[]),'project_incomplete_launch_directories':incomplete_launches,
         'limitations':['A small screened success set does not demonstrate a high general success rate.','Only g2crsb90d execution has been exercised.']}
+    if job.get('scene_outcome'):
+        data['scene_outcome']=job['scene_outcome']
     if job.get('recovery'):
         recovery=job['recovery']
         data['ledger_recovery']={k:recovery[k] for k in ('original_job','prior_metrics_snapshot','historical_limit')}

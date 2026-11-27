@@ -64,6 +64,17 @@ def validate_plan(plan,spec,adapter,*,held=None,achieved=()):
     for role in bindings:adapter.resolve_role(role,bindings)
     steps=plan['steps']
     if not isinstance(steps,list) or not 1<=len(steps)<=60:raise ValueError('Plan step budget exceeded')
+    if any(not isinstance(step,dict) or set(step)!={'id','skill','parameters'} or
+           not isinstance(step['skill'],str) for step in steps):
+        raise ValueError('Invalid step fields')
+    unregistered=list(dict.fromkeys(step['skill'] for step in steps if step['skill'] not in SKILLS))
+    if unregistered:
+        from skill_capabilities import discover_skills
+        gaps=discover_skills(unregistered,adapter)
+        error=UnsupportedRequest(gaps.get('message','Skill is not registered'),missing_skills=unregistered,
+                                 missing_capabilities=gaps['missing_robot_capabilities'])
+        error.details.update(gaps)
+        raise error
     holding=dict(held or {});known=set(spec['objects']);seen=set();facts=set(achieved)
     packed=completed_packing_objects(spec,facts)
     cap_task=spec['template']=='put_the_cap_on_the_pen_new'
@@ -71,10 +82,8 @@ def validate_plan(plan,spec,adapter,*,held=None,achieved=()):
     if spec['template'] == 'phone_packaging':
         packing_relations = {f'packing_stage_{index}': obj for index, obj in enumerate(spec['manipulated_objects'])}
     for step in steps:
-        if not isinstance(step,dict) or set(step)!={'id','skill','parameters'}:raise ValueError('Invalid step fields')
         if not isinstance(step['id'],str) or step['id'] in seen:raise ValueError('Duplicate step ID')
         seen.add(step['id']);skill=step['skill'];params=step['parameters']
-        if skill not in SKILLS:raise UnsupportedRequest('Skill is not registered',missing_skills=[skill])
         contract=SKILLS[skill];adapter.require(contract['requires'])
         if not isinstance(params,dict) or set(params)!=set(contract['parameters']):raise ValueError('Skill parameter mismatch: '+skill)
         for field in ['object','reference']:
@@ -90,6 +99,10 @@ def validate_plan(plan,spec,adapter,*,held=None,achieved=()):
         if skill=='grasp':
             if obj in packed:
                 raise ValueError('Recovery tries to regrasp a physically verified packing component: '+obj)
+            if spec.get('goal') and obj in spec['manipulated_objects']:
+                index=spec['manipulated_objects'].index(obj)
+                if any(f'relation:packing_stage_{i}' not in facts for i in range(index)):
+                    raise ValueError('Declared packing relations must be completed in order')
             if cap_task and obj==spec['bindings']['cap'] and 'relation:cap_seated' in facts:
                 raise ValueError('The cap is seated. Continue the remaining operations while retaining the assembly.')
             if role in holding or obj in holding.values():raise ValueError('Grasp requires empty arm and unheld object')
@@ -146,6 +159,10 @@ def validate_plan(plan,spec,adapter,*,held=None,achieved=()):
             if relation in packing_relations:
                 if packing_relations[relation] != obj or 'released:' + obj not in facts:
                     raise ValueError('Packing relation requires its released component: '+relation)
+                if spec.get('goal') and any(
+                    f'relation:packing_stage_{i}' not in facts for i in range(spec['manipulated_objects'].index(obj))
+                ):
+                    raise ValueError('Verify preceding declared packing relations first')
                 facts.add('relation:' + relation)
                 packed.add(obj)
             if cap_task and relation=='cap_seated':
@@ -168,4 +185,7 @@ def validate_plan(plan,spec,adapter,*,held=None,achieved=()):
     missing_relations = {'relation:' + relation for relation in packing_relations} - facts
     if missing_relations:
         raise ValueError('Plan omits stage verification: '+str(sorted(missing_relations)))
+    if spec.get('task_plugin'):
+        from task_plugins import load
+        load(spec['task_plugin']).validate_steps(plan,spec,held or {},achieved)
     return plan

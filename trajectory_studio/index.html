@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f6">
+  <title>仿真轨迹工作台 | Nexus</title>
+  <link rel="stylesheet" href="/studio.css">
+  <script src="/studio.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#workspace" aria-label="返回工作台">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="brand-name">NEXUS<span class="brand-divider"></span><span>仿真数据工作台</span></span>
+      </a>
+      <nav class="navigation" aria-label="页面导航">
+        <a class="nav-current" href="#workspace">轨迹生成</a>
+        <a href="#examples">轨迹样例</a>
+      </nav>
+      <div class="connection" id="connection"><span class="connection-dot"></span><span id="connection-text">正在连接</span></div>
+    </div>
+  </header>
+
+  <main class="page" id="workspace">
+    <section class="page-heading">
+      <div>
+        <div class="eyebrow">GENIE SIM <span>/</span> TRAJECTORY STUDIO</div>
+        <h1>仿真轨迹工作台<span class="heading-dot">.</span></h1>
+        <p>用自然语言描述任务，生成并查看机器人的仿真轨迹。</p>
+      </div>
+      <div class="workspace-meta"><span class="meta-indicator"></span> Isaac Sim <span class="meta-divider"></span> G2CRSB90D</div>
+    </section>
+
+    <section class="workspace-grid" aria-label="轨迹工作台">
+      <div class="left-column">
+        <form class="panel create-panel" id="request-form">
+          <div class="panel-heading">
+            <div>
+              <span class="section-kicker">NEW REQUEST</span>
+              <h2>创建生成任务</h2>
+            </div>
+            <span class="robot-icon" aria-hidden="true"><span></span></span>
+          </div>
+          <label class="field-label" for="instruction">任务需求</label>
+          <p class="field-help">说明机器人要做什么，也可以描述场景和轨迹数量。</p>
+          <textarea id="instruction" name="instruction" maxlength="8192" required placeholder="例如：在桌面场景中，将手机放入包装盒，生成一条完整轨迹。"></textarea>
+          <div class="examples-label">试试这些需求</div>
+          <div class="prompt-list">
+            <button type="button" class="prompt-chip" data-prompt="生成一条机器人将手机放进包装盒底座的轨迹，内托和盒盖留在原位。">手机装盒</button>
+            <button type="button" class="prompt-chip" data-prompt="生成一条机器人将积木插入对应孔位的轨迹。">积木插入</button>
+            <button type="button" class="prompt-chip" data-prompt="生成一条双臂机器人将笔帽盖到笔上的轨迹。">盖笔帽</button>
+          </div>
+          <div class="form-divider"></div>
+          <div class="form-setting"><span>执行机器人</span><strong>G2CRSB90D</strong></div>
+          <div class="form-setting"><span>仿真环境</span><strong>Isaac Sim</strong></div>
+          <button class="primary-button" id="submit-button" type="submit"><span class="button-spark" aria-hidden="true">✦</span>生成轨迹</button>
+          <p class="submit-note">请在需求中说明轨迹数量。生成时间取决于任务和服务器资源。</p>
+          <div class="form-error" id="form-error" role="alert" hidden></div>
+        </form>
+
+        <section class="panel status-panel" aria-labelledby="status-heading">
+          <div class="status-heading-row">
+            <div><span class="section-kicker">ACTIVITY</span><h2 id="status-heading">生成状态</h2></div>
+            <span class="status-pill neutral" id="job-badge">等待提交</span>
+          </div>
+          <p class="status-message" id="job-message" aria-live="polite">提交任务后，可在这里查看进度和结果。</p>
+          <div class="status-detail" id="job-detail" hidden></div>
+          <div id="job-episodes" class="job-episodes"></div>
+          <div class="history" id="history" hidden>
+            <div class="history-title">最近的任务</div>
+            <div id="history-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel viewer-panel" aria-labelledby="viewer-heading">
+        <div class="viewer-header">
+          <div><span class="section-kicker">VIDEO PREVIEW</span><h2 id="viewer-heading">轨迹预览</h2></div>
+          <span class="viewer-tag" id="viewer-tag">样例轨迹</span>
+        </div>
+        <div class="video-shell">
+          <video id="player" controls playsinline preload="metadata"></video>
+          <div class="video-loading" id="video-loading" hidden>正在准备视频，请稍候…</div>
+          <div class="video-empty" id="video-empty">
+            <span class="empty-play" aria-hidden="true">▶</span>
+            <strong>选择一条轨迹开始查看</strong>
+            <span>生成完成后，视频也会显示在这里</span>
+          </div>
+        </div>
+        <div class="viewer-bottom">
+          <div class="video-info">
+            <h3 id="video-title">选择轨迹</h3>
+            <p id="video-subtitle">从下方样例库选择，或创建新的任务</p>
+          </div>
+          <div class="camera-switch" role="group" aria-label="选择相机视角">
+            <button type="button" class="camera active" data-camera="head" aria-pressed="true">全景</button>
+            <button type="button" class="camera" data-camera="hand_left" aria-pressed="false">左腕</button>
+            <button type="button" class="camera" data-camera="hand_right" aria-pressed="false">右腕</button>
+          </div>
+        </div>
+        <div class="viewer-notice" id="video-error" role="status" hidden>视频暂时无法播放，请检查服务器连接。</div>
+      </section>
+    </section>
+
+    <section class="sample-section" id="examples">
+      <div class="sample-heading">
+        <div><span class="section-kicker">EXAMPLE LIBRARY</span><h2>已生成的轨迹</h2><p>选择样例，查看不同任务和场景下的实际仿真记录。</p></div>
+        <span class="sample-count" id="sample-count">正在加载</span>
+      </div>
+      <div class="sample-grid" id="sample-grid"></div>
+      <p class="library-message" id="library-message" hidden></p>
+    </section>
+    <footer><span>NEXUS <span class="footer-separator">/</span> 仿真数据工作台</span><span>Genie Sim · Isaac Sim</span></footer>
+  </main>
+</body>
+</html>
