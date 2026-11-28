@@ -7,6 +7,7 @@ from audit_episode import g2_arm_command_continuity
 from batch_collect import write
 from collection_control import STORAGE
 from export_lerobot import recording_path
+from lerobot_layout import raw_archive_path
 from scene_contract import digest, read_json
 
 
@@ -42,7 +43,7 @@ def published_sources(root, jobs, retired=()):
         if path in retired:
             continue
         loader = path/'official_loader_receipt.json'
-        archive = path.with_name(path.name.removesuffix('-v2-1') + '-raw-trajectories')
+        archive = raw_archive_path(path)
         manifest = read_json(archive/'manifest.json')
         if (digest(loader) != dataset['loader_receipt_sha256'] or not read_json(loader)['passed']
                 or manifest['episodes'] != dataset['episodes'] or manifest['training_dataset'] != str(path)):

@@ -14,7 +14,7 @@ python platform_api.py --state-dir .platform-state serve --port 8786
 
 ```bash
 curl -s http://127.0.0.1:8786/v1/capabilities
-curl -i -X POST http://127.0.0.1:8786/v1/jobs -H 'Content-Type: application/json' -H 'Idempotency-Key: phone-scene0-preview-01' --data '{"instruction":"在场景0采集手机装盒轨迹","simulator":"isaac_physx","robot_id":"g2crsb90d","task_ids":["phone_packaging"],"scenes":["0"],"execute":false}'
+curl -i -X POST http://127.0.0.1:8786/v1/jobs -H 'Content-Type: application/json' -H 'Idempotency-Key: phone-scene0-preview-01' --data '{"instruction":"在场景0采集手机装盒轨迹","simulator":"isaac_physx","robot_id":"g2crsb90d","task_ids":["phone_packaging"],"scenes":["0"],"dataset_format":"v3.0","execute":false}'
 # 从上一个响应的 Location 复制路径
 curl -s http://127.0.0.1:8786/v1/jobs/<id>
 ```
@@ -24,14 +24,18 @@ curl -s http://127.0.0.1:8786/v1/jobs/<id>
 | 路径 | 输入 | 响应 |
 | --- | --- | --- |
 | `GET /v1/openapi.json` | 无 | [OpenAPI 3.1 接口描述](openapi.json)，可导入联调工具 |
-| `GET /v1/capabilities` | 无 | `operations` 列出 ID、上游目录、所需输入、返回字段、可执行状态和已接通的采集范围 |
-| `POST /v1/jobs` | 必填 `instruction`，选填 `simulator`、`robot_id`、`task_ids`、`scenes`、`execute` | `202`，返回 `id`、`status_url`，响应头含 `Location` |
-| `GET /v1/jobs/{id}` | 平台 ID | `state`、`native_job_id`、可用时的 `native.success_counts`、`attempt_count` 和 `result` |
+| `GET /v1/capabilities` | 无 | `dataset_format` 和接口能力列表 `operations` |
+| `POST /v1/jobs` | 必填 `instruction`，选填 `dataset_format`、`simulator`、`robot_id`、`task_ids`、`scenes`、`execute` | `202`，返回 `id`、`status_url`、`dataset_format`，响应头含 `Location` |
+| `GET /v1/jobs/{id}` | 平台 ID | `state`、`native_job_id`、新作业约定的 `dataset_format`、可用时的 `native.success_counts`、`attempt_count` 和 `result` |
 | `POST /v1/extensions/{operation}` | 按能力清单传入该操作的必填字符串参数 | 已接入的扩展进入同一队列。预留扩展返回 `422 unsupported`，列明缺项 |
 
 工作队列使用 SQLite。`queued` 等待 Worker，`running` 已被领取，`finished` 表示原生调用已返回。请读 `result.status` 判断业务结果。只有 `complete` 并带已验收的 `result.dataset` 才能发布训练数据。`skill_plans_prepared` 只有计划。`needs_hardpoint_check` 等待同版配方难点复核。`failed` 保留错误类别。Worker 在物理执行前持久化原生作业 ID，查询时可获得收集计数和服务端数据路径。该路径供平台有权限的文件服务读取。
 
-相同 `Idempotency-Key` 加相同请求返回同一 ID，重用键并改变参数返回 `409`。无效 JSON 或字段返回 `400`，未登记的机器人、任务、场景或后端返回 `422`。每个状态目录同时允许一个 Worker。意外中断后，重新启动 Worker 将上次运行中的平台作业标为 `interrupted`，保留原生 ID。可在实验室据此检查实际进程、原生日志和已入库回合，再按采集手册接续。`work --once` 适合已有调度器轮询。
+`POST /v1/jobs` 默认绑定 LeRobot Dataset `v3.0`。显式传入该值与省略字段等效。指定其他版本时，接口在入队前返回 `422 DATASET_FORMAT_UNSUPPORTED`。
+
+`result.dataset` 和 `result.partial_dataset` 提供实际发布的 `dataset_format`、`dataset_path`、`files_manifest` 和 `official_reader_verified`。若后台回传的版本不符或验收回执缺失，作业返回 `dataset_finalization_failed`，错误码为 `DATASET_FORMAT_MISMATCH` 或 `DATASET_RECEIPT_INVALID`，数据集字段为空。历史 v2.1 作业可用原 ID 查询。工作台通过 `raw_trajectory_path` 预览原始录像。[数据下载和读取](downloads.md)
+
+相同 `Idempotency-Key` 加相同请求返回同一 ID，重用键并改变参数返回 `409`。数据格式纳入请求匹配，升级前提交过的幂等键需要保留给原作业。无效 JSON 或字段返回 `400`，未登记的机器人、任务、场景或后端返回 `422`。每个状态目录同时允许一个 Worker。意外中断后，重新启动 Worker 将上次运行中的平台作业标为 `interrupted`，保留原生 ID。可在实验室据此检查实际进程、原生日志和已入库回合，再按采集手册接续。`work --once` 适合已有调度器轮询。
 
 ## 轨迹配额与重复策略
 
@@ -102,6 +106,7 @@ from genie_extensions import Registry
 registry = Registry()
 # collect_with_mujoco 由团队实现，签名为 (payload, on_native_job) -> dict。
 # 原生作业建立后调用 on_native_job(native_id)，返回至少包含 status、job_id 的字典。
+# 有数据集时按 payload["dataset_format"] 发布并返回验收回执。
 registry.register("mujoco", collect_with_mujoco, scope={
     "robot_ids": verified_robots, "task_ids": verified_tasks, "scenes": verified_scenes,
 })

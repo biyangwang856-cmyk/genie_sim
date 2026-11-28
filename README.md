@@ -1,6 +1,6 @@
 # Genie Sim 自然语言仿真采集后台
 
-用户提交操作指令，后台调用 Qwen 理解需求并检索已有资产。结构化计划由技能执行器逐步交给 RobotAPI、cuRobo 和 Isaac Sim。独立验收通过后，系统归档实测状态、实际下发动作、三路视频和 LeRobot v2.1 数据。
+用户提交操作指令，后台调用 Qwen 理解需求并检索已有资产。结构化计划由技能执行器逐步交给 RobotAPI、cuRobo 和 Isaac Sim。独立验收通过后，系统归档实测状态、实际下发动作和三路视频，直接生成 LeRobot Dataset v3.0。历史 v2.1 包仍可按原版本读取。
 
 ## 团队从哪里开始
 
@@ -43,7 +43,7 @@
 | `skill_capabilities.py`、`skill_onboarding.py`、`skill_recovery.py` | 原生能力映射、范围证书与实测状态恢复 |
 | `collection_control.py`、`run_collection_*.py`、`project_runtime_hooks.py`、`batch_collect.py` | 隔离采集、源码冻结、实测动作与三路图像、批量配额与恢复 |
 | `audit_*.py`、`review_hardpoint.py`、`certify_recipe.py` | 从记录重算成功判据、检查动作重复、复核抓取与释放等难点 |
-| `finalize_job.py`、`export_lerobot.py`、`verify_lerobot_reader.py`、`bundle_raw_trajectories.py` | 正式数据发布、官方读取器验证和原始回合集合 |
+| `finalize_job.py`、`export_lerobot.py`、`lerobot_v3.py`、`verify_lerobot_reader.py`、`bundle_raw_trajectories.py` | v3.0 分片、正式数据发布、官方读取器验证和原始回合归档 |
 | `platform_api.py`、`platform_jobs.py`、`genie_extensions.py` | 版本化 HTTP 接口、持久作业队列和可信实现注册 |
 | `tasks/`、`configs/`、`runtime_inputs/` | 六份实际运行场景、各任务描述、G2 标定、几何证据和两份 SDK 补丁 |
 

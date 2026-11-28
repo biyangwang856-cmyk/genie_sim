@@ -14,6 +14,8 @@ import threading
 import time
 from wsgiref.simple_server import WSGIServer, make_server
 
+from lerobot_layout import dataset_identity, dataset_info, raw_archive_path
+
 
 WEB = Path(__file__).resolve().parent
 CAMERAS = ("head", "hand_left", "hand_right")
@@ -91,6 +93,8 @@ def export_directory(value, exports):
 
 def verified_episodes(archive, dataset, exports, expected_hash=None):
     raw, training = (export_directory(path, exports) for path in (archive, dataset))
+    _, version = dataset_identity(training)
+    info = dataset_info(training)
     receipt_bytes = (training / "official_loader_receipt.json").read_bytes()
     if expected_hash and hashlib.sha256(receipt_bytes).hexdigest() != expected_hash:
         raise ValueError("Loader receipt verification failed")
@@ -99,7 +103,11 @@ def verified_episodes(archive, dataset, exports, expected_hash=None):
     items = manifest["trajectory_index"]
     if (receipt.get("passed") is not True or manifest.get("all_files_checksum_verified") is not True
             or Path(manifest["training_dataset"]).resolve() != training
-            or receipt["episodes"] != len(items) or manifest["episodes"] != len(items)):
+            or raw != raw_archive_path(training)
+            or info["codebase_version"] != version or receipt["format"] != version
+            or manifest.get("dataset_format", version) != version
+            or receipt["episodes"] != len(items) or manifest["episodes"] != len(items)
+            or receipt["frames"] != info["total_frames"] or manifest["frames"] != receipt["frames"]):
         raise ValueError("Archive and reader receipt disagree")
     episodes = []
     for item in items:
@@ -109,7 +117,8 @@ def verified_episodes(archive, dataset, exports, expected_hash=None):
             if not video.is_relative_to(raw) or video.suffix.lower() != ".mp4" or not video.is_file():
                 raise ValueError("Verified video is missing from the archive")
             cameras[name] = video
-        episodes.append({**{k: item[k] for k in ("task", "scene", "frames")}, "cameras": cameras})
+        episodes.append({**{k: item[k] for k in ("task", "scene", "frames")},
+                         "dataset_format": version, "cameras": cameras})
     return episodes
 
 
@@ -117,8 +126,9 @@ def sample_library(exports):
     library = {}
     for name, indices in SAMPLE_EXPORTS:
         try:
-            episodes = verified_episodes(exports / (name + "-raw-trajectories"),
-                                         exports / (name + "-v2-1"), exports)
+            archive = exports / (name + "-raw-trajectories")
+            manifest = json.loads((archive / "manifest.json").read_bytes())
+            episodes = verified_episodes(archive, manifest["training_dataset"], exports)
             for index in indices:
                 episode = episodes[index]
                 episode["scene_label"] = ("场景 A" if index == 0 else "场景 B") if name.startswith("2026") else f"场景 {episode['scene']}"
@@ -133,7 +143,8 @@ def episode_info(key, ep, *, sample=False):
     return {
         "id": key, "task": ep["task"], "title": TASK_LABELS.get(ep["task"], ep["task"]),
         "scene": ep["scene"], "scene_label": ep.get("scene_label", f"场景 {ep['scene']}"),
-        "frames": ep["frames"], "videos": {name: f"{base}/{name}.mp4" for name in CAMERAS},
+        "frames": ep["frames"], "dataset_format": ep["dataset_format"],
+        "videos": {name: f"{base}/{name}.mp4" for name in CAMERAS},
         "poster": f"/studio/posters/{key}.jpg" if sample else None,
     }
 

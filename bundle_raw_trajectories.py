@@ -9,6 +9,7 @@ from pathlib import Path
 
 from collection_control import STORAGE
 from export_lerobot import digest, recording_path
+from lerobot_layout import DATASET_FORMAT, FILES_MANIFEST, dataset_identity, dataset_info, raw_archive_path
 
 
 RUNS = STORAGE / 'collection-runs'
@@ -141,13 +142,19 @@ def copy_episode(staging, run, files, originals, episode, *, link=False):
 
 def bundle(dataset, *, link=False):
     dataset = Path(dataset).resolve()
-    if dataset.parent != EXPORTS or not dataset.name.endswith('-v2-1'):
+    if dataset.parent != EXPORTS:
         raise ValueError('Select a published LeRobot dataset in the project exports directory')
+    _, version = dataset_identity(dataset)
+    info = dataset_info(dataset)
     final = read_json(dataset / 'finalization.json')
     export = read_json(dataset / 'export_receipt.json')
     loader = read_json(dataset / 'official_loader_receipt.json')
     if not final['official_reader_verified'] or not loader['passed'] or not export['official_reader_verified']:
         raise ValueError('Only a reader-verified dataset can be bundled')
+    if (info['codebase_version'] != version or loader['format'] != version
+            or final.get('dataset_format', version) != version
+            or info['total_frames'] != loader['frames'] or info['total_episodes'] != loader['episodes']):
+        raise ValueError('Dataset metadata and reader receipt disagree')
     if digest(dataset / 'official_loader_receipt.json') != final['loader_receipt_sha256']:
         raise ValueError('Reader receipt has changed')
     if len(final['sources']) != final['episodes'] or final['episodes'] != loader['episodes']:
@@ -158,7 +165,7 @@ def bundle(dataset, *, link=False):
     if indexes != list(range(final['episodes'])) or sum(p[3]['frames'] for p in plans) != loader['frames']:
         raise ValueError('Source episode indices or frame counts do not match the dataset')
 
-    output = EXPORTS / (dataset.name.removesuffix('-v2-1') + '-raw-trajectories')
+    output = raw_archive_path(dataset)
     if output.exists():
         manifest=read_json(output/'manifest.json')
         if (manifest['training_dataset']==str(dataset) and manifest['episodes']==len(plans)
@@ -173,11 +180,13 @@ def bundle(dataset, *, link=False):
     staging = output.parent / f'.{output.name}-staging-{uuid.uuid4().hex[:10]}'
     staging.mkdir()
     try:
+        receipt_names = DATASET_RECEIPTS + ((FILES_MANIFEST,) if version == DATASET_FORMAT else ())
         receipts = {name: copy_verified(dataset / name, staging / 'dataset-receipts' / name)
-                    for name in DATASET_RECEIPTS}
+                    for name in receipt_names}
         copied = sum(copy_episode(staging, *plan,link=link) for plan in plans)
         manifest = {
             'training_dataset': str(dataset),
+            'dataset_format': version,
             'episodes': final['episodes'],
             'frames': loader['frames'],
             'copied_episode_file_bytes': copied,

@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from robot_adapters import ROOT,load_robot,UnsupportedRequest
 from collection_scope import DYNAMIC_TASKS, SCENES, TASKS
+from lerobot_layout import DATASET_FORMAT
 from qwen_backend import QwenAPI
 from scene_contract import count, scene_request
 
@@ -126,10 +127,12 @@ def resolve_intent(api,instruction,catalog,robot,explicit,quota):
                              missing_capabilities=['supported_scene_layout_constraints'])
 
 def submit(instruction,*,robot_id='g2crsb90d',task_ids=None,scenes=SCENES,execute=False,on_prepared=None,
-           scene_options=None,successes_per_scene=None,trajectory_options=None,skill_goal=None):
+           scene_options=None,successes_per_scene=None,trajectory_options=None,skill_goal=None,dataset_format=None):
     from container_goal import TASK_ID as CONTAINER_TASK
     from trajectory_diversity import resolve_trajectory_request
 
+    if dataset_format is not None and dataset_format != DATASET_FORMAT:
+        raise ValueError(f'Collection requires LeRobot Dataset {DATASET_FORMAT}')
     adapter=load_robot(robot_id)
     if not isinstance(instruction,str) or not instruction.strip():raise ValueError('Nonempty natural-language instruction is required')
     if skill_goal is not None:
@@ -284,6 +287,8 @@ def submit(instruction,*,robot_id='g2crsb90d',task_ids=None,scenes=SCENES,execut
     receipt=json.loads(result.stdout.splitlines()[-1]);job_path=Path(receipt['path']);job=json.loads(job_path.read_text())
     job.update(original_request_file=str(request),intent_receipt=intent_receipts[-1] if intent_receipts else None,
                intent_receipts=intent_receipts,preflight_only=not execute)
+    if dataset_format is not None:
+        job['dataset_format']=dataset_format
     job_path.write_text(json.dumps(job,ensure_ascii=False,indent=2))
     if on_prepared is not None:on_prepared(job['job_id'])
     if execute:subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'batch_collect.py'),'--job',str(job_path),

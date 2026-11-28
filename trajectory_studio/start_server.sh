@@ -10,7 +10,7 @@ studio_runtime="${GENIE_STUDIO_RUNTIME:-$(dirname -- "$studio_app")}"
 studio_runtime="$(cd -- "$studio_runtime" && pwd)"
 studio_state="${GENIE_STUDIO_STATE:-$studio_runtime/.platform-state/trajectory-studio}"
 studio_exports="${GENIE_STUDIO_EXPORTS:-/data/by/genie_sim/exports}"
-studio_reader="${GENIE_STUDIO_MEDIA_PYTHON:-/data/by/genie_sim/lerobot-reader-0cf8648/bin/python}"
+studio_reader="${GENIE_STUDIO_MEDIA_PYTHON:-$studio_runtime/.venv/bin/python}"
 studio_port="${GENIE_STUDIO_PORT:-18765}"
 export GENIE_STUDIO_PORT="$studio_port"
 
@@ -27,7 +27,7 @@ if ss -H -lnt "sport = :$studio_port" | grep -q .; then
 fi
 export GENIE_PROJECT_ROOT="$studio_runtime"
 export GENIE_COLLECTION_SLOT="${GENIE_COLLECTION_SLOT:-gpu1-extra}"
-export PYTHONPATH="$studio_runtime${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$(dirname -- "$studio_app"):$studio_runtime${PYTHONPATH:+:$PYTHONPATH}"
 export PATH="$studio_runtime/.venv/bin:$PATH"
 cd "$studio_runtime"
 mkdir -p "$studio_state"

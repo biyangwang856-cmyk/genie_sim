@@ -1,16 +1,16 @@
-"""Server-side native robot export, compatible with the team's LeRobot v2.1 reader.
+"""Export verified native simulations directly to LeRobot Dataset v3.0.
 
 All actions come from resolved actuator commands. The state vector never supplies
 missing action values. Diagnostic physics baselines cannot enter training exports.
 """
-import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET
+import argparse,hashlib,json,os,shutil,xml.etree.ElementTree as ET
 from pathlib import Path
 import numpy as np
 import pyarrow as pa
-import pyarrow.parquet as pq
-import av
+from lerobot_layout import CHUNK_SIZE, DATASET_FORMAT, DATA_PATH, VIDEO_PATH
+from lerobot_v3 import DATA_SIZE_MB, VIDEO_SIZE_MB, V3Shards, probe_clip
 
-ROOT=Path('/home/vipuser/by/genie_sim')
+ROOT=Path(os.environ.get('GENIE_PROJECT_ROOT','/home/vipuser/by/genie_sim'))
 STORAGE=Path('/data/by/genie_sim')
 FPS=30
 CAMERAS={'head':'cam_high','hand_left':'cam_left_wrist','hand_right':'cam_right_wrist'}
@@ -105,28 +105,12 @@ def native_arrays(run,*,require_gains=True):
         'drive_parameters_present':all('action.'+k in columns for k in ['stiffness','damping','effort_limit']),
         'pi_action_adapter_verified':False}
 
-def video_info(path):
-    with av.open(str(path)) as container:
-        stream=container.streams.video[0];fps=float(stream.average_rate)
-        codec=stream.codec_context.name
-        if abs(fps-FPS)>1e-6 or codec not in ['h264','hevc']:raise ValueError('Unexpected native video codec/clock')
-        height,width,pix_fmt=stream.height,stream.width,stream.pix_fmt
-    return {'video.height':height,'video.width':width,'video.codec':codec,'video.pix_fmt':pix_fmt,
-        'video.is_depth_map':False,'video.fps':FPS,'video.channels':3,'has_audio':False}
-
-def image_stats(path,expected_frames):
-    # Decode the whole video; statistics use all frames at 64x64 nearest samples.
-    result=subprocess.run([str(ROOT/'.venv/bin/ffmpeg'),'-v','error','-i',str(path),'-vf','scale=64:64:flags=neighbor','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],capture_output=True,check=True)
-    pixels=np.frombuffer(result.stdout,dtype=np.uint8).reshape(-1,64*64,3)
-    if len(pixels)!=expected_frames:raise ValueError('Exported camera frame count mismatch')
-    a=pixels.astype(np.float64)/255.
-    return {**{key:fn(a,axis=(0,1)).reshape(3,1,1).tolist() for key,fn in [('min',np.min),('max',np.max),('mean',np.mean),('std',np.std)]},'count':[len(pixels)]}
-
 def export(runs,output,diagnostic=False):
     output=Path(output).resolve();runs=[Path(r).resolve() for r in runs]
     expected_parent=STORAGE/('diagnostic-exports' if diagnostic else 'exports')
     if output.parent!=expected_parent:raise ValueError('Export must use its designated project output directory')
     if output.exists():raise FileExistsError(output)
+    if not runs or len(set(runs))!=len(runs):raise ValueError('Provide distinct accepted episode sources')
     from audit_episode import audit
     from batch_collect import audit_recording
     admissions=[]
@@ -138,6 +122,7 @@ def export(runs,output,diagnostic=False):
         if not verdict['accepted'] and not (diagnostic and verdict['physical_sample_accepted']):raise ValueError('Unaccepted source: '+str(run))
         admissions.append(verdict)
     output.mkdir(parents=True);meta=output/'meta';meta.mkdir();features=None;tasks=[];episodes=[];episode_stats=[];offset=0;sources=[]
+    shards=V3Shards(output,FPS,ROOT/'.venv/bin/ffmpeg')
     robot_id=json.loads((runs[0]/'launch.json').read_text())['robot_id']
     for ep,(run,verdict) in enumerate(zip(runs,admissions)):
         arrays,control_spec=native_arrays(run,require_gains=not diagnostic);length=len(arrays['observation.state'])
@@ -148,33 +133,31 @@ def export(runs,output,diagnostic=False):
         if str(scene['scene_id'])!=launch['scene']:raise ValueError('Executed scene identity mismatch')
         instruction=scene['official_instruction']['instruction']
         if instruction not in tasks:tasks.append(instruction)
-        task_index=tasks.index(instruction);chunk=ep//1000
+        task_index=tasks.index(instruction)
         arrays.update(timestamp=np.arange(length,dtype=np.float32)/FPS,frame_index=np.arange(length,dtype=np.int64),
             episode_index=np.full(length,ep,dtype=np.int64),index=np.arange(offset,offset+length,dtype=np.int64),task_index=np.full(length,task_index,dtype=np.int64))
-        current={};hf={};arrow={};statistics={}
+        current={};arrow={};statistics={}
         for key,a in arrays.items():
             if a.ndim==2:
                 current[key]={'dtype':'float32','shape':[a.shape[1]],'names':control_spec['joint_names']}
-                hf[key]={'feature':{'dtype':'float32','_type':'Value'},'length':a.shape[1],'_type':'Sequence'}
                 arrow[key]=pa.FixedSizeListArray.from_arrays(pa.array(a.reshape(-1),type=pa.float32()),a.shape[1])
             else:
                 dtype='int64' if a.dtype==np.int64 else 'float32'
-                current[key]={'dtype':dtype,'shape':[1],'names':None};hf[key]={'dtype':dtype,'_type':'Value'};arrow[key]=pa.array(a)
+                current[key]={'dtype':dtype,'shape':[1],'names':None};arrow[key]=pa.array(a)
             statistics[key]=stats(a)
         raw=recording_path(run);info=json.loads((raw/'recording_info.json').read_text())
+        clips={}
         for camera,keyname in CAMERAS.items():
             source=raw/'observations/videos'/info['camera_info'][camera]['output']['video']
-            key='observation.images.'+keyname;video_meta=video_info(source)
-            current[key]={'dtype':'video','shape':[video_meta['video.height'],video_meta['video.width'],3],'names':['height','width','channels'],'info':video_meta}
-            dest=output/f'videos/chunk-{chunk:03d}'/key/f'episode_{ep:06d}.mp4';dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,dest)
-            if digest(source)!=digest(dest):raise ValueError('Video transfer mismatch')
-            statistics[key]=image_stats(dest,length)
+            key='observation.images.'+keyname
+            current[key],statistics[key],clips[key]=probe_clip(source,length,FPS)
         if features is None:features=current
         elif features!=current:raise ValueError('Robot/control/camera feature schema changed across episodes')
-        table=pa.table(arrow).replace_schema_metadata({b'huggingface':json.dumps({'info':{'features':hf}}).encode()})
-        parquet=output/f'data/chunk-{chunk:03d}/episode_{ep:06d}.parquet';parquet.parent.mkdir(parents=True,exist_ok=True);pq.write_table(table,parquet,compression='zstd')
-        back=pq.read_table(parquet)
-        for key,values in arrays.items():np.testing.assert_array_equal(np.asarray(back[key].to_pylist(),dtype=values.dtype),values)
+        episode={'episode_index':ep,'tasks':[instruction],'length':length,
+                 'dataset_from_index':offset,'dataset_to_index':offset+length}
+        episode.update(shards.add_data(pa.table(arrow)))
+        for key,clip in clips.items():
+            episode.update(shards.add_video(key,clip))
         provenance=output/f'provenance/episode_{ep:06d}';provenance.mkdir(parents=True)
         shutil.copytree(run/'source',provenance/'source');shutil.copytree(run/'evidence',provenance/'evidence')
         shutil.copytree(scene_path.parent,provenance/'executed-scene')
@@ -192,16 +175,17 @@ def export(runs,output,diagnostic=False):
         dump(provenance/'control-spec.json',control_spec)
         sources.append({'run':str(run),'episode_index':ep,'task_id':scene['task_template'],'scene_id':scene['scene_id'],
             'frames':length,'training_eligible':not diagnostic,'launch_sha256':digest(run/'launch.json')})
-        episodes.append({'episode_index':ep,'tasks':[instruction],'length':length});episode_stats.append({'episode_index':ep,'stats':statistics});offset+=length
-    dump(meta/'info.json',{'codebase_version':'v2.1','robot_type':f'geniesim_{robot_id}_native','total_episodes':len(runs),'total_frames':offset,
-        'total_tasks':len(tasks),'total_videos':len(runs)*3,'total_chunks':(len(runs)+999)//1000,'chunks_size':1000,'fps':FPS,'splits':{'train':'0:'+str(len(runs))},
-        'data_path':'data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet','video_path':'videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4','features':features})
-    for name,rows in [('episodes.jsonl',episodes),('episodes_stats.jsonl',episode_stats),('tasks.jsonl',[{'task_index':i,'task':s} for i,s in enumerate(tasks)])]:
-        (meta/name).write_text(''.join(json.dumps(row,ensure_ascii=False)+'\n' for row in rows),encoding='utf-8')
-    receipt={'format':'LeRobot v2.1','export_passed':True,'official_reader_verified':False,'training_eligible':not diagnostic,
+        episodes.append(episode);episode_stats.append(statistics);offset+=length
+    shards.finish(tasks,episodes,episode_stats)
+    dump(meta/'info.json',{'codebase_version':DATASET_FORMAT,'robot_type':f'geniesim_{robot_id}_native',
+        'total_episodes':len(runs),'total_frames':offset,'total_tasks':len(tasks),'chunks_size':CHUNK_SIZE,
+        'data_files_size_in_mb':DATA_SIZE_MB,'video_files_size_in_mb':VIDEO_SIZE_MB,'fps':FPS,
+        'splits':{'train':f'0:{len(runs)}'},'data_path':DATA_PATH,'video_path':VIDEO_PATH,'features':features})
+    receipt={'format':f'LeRobot {DATASET_FORMAT}','dataset_format':DATASET_FORMAT,
+        'export_passed':True,'official_reader_verified':False,'training_eligible':not diagnostic,
         'frames':offset,'sources':sources,'numeric_readback_exact':True,'all_video_frames_decoded':True,'video_payloads_unchanged':True,
         'image_statistics':'all video frames; 64x64 nearest spatial sampling; RGB normalized to [0,1]',
-        'reader_requirement':'Team official LeRobotDataset must load numeric features and first/middle/last multimodal samples before delivery.'}
+        'reader_requirement':'Official v3.0 LeRobotDataset must load all numeric features and episode boundary video samples before delivery.'}
     dump(output/'export_receipt.json',receipt);print(json.dumps({'output':str(output),**receipt}),flush=True)
 
 if __name__=='__main__':

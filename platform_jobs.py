@@ -8,11 +8,42 @@ import sqlite3
 import time
 import uuid
 
+from lerobot_layout import FILES_MANIFEST, LEGACY_FORMAT, SUFFIXES
 from robot_adapters import ROOT, UnsupportedRequest
 
 
 class RequestConflict(ValueError):
     pass
+
+
+def check_dataset_result(record, expected_format):
+    """Check publication receipts before exposing them to a version-bound job."""
+    if record is None or expected_format is None:
+        return record, False
+    for field in ("dataset", "partial_dataset"):
+        receipt = record.get(field)
+        if receipt is None and (field != "dataset" or record.get("status") != "complete"):
+            continue
+        actual_format = None
+        code = "DATASET_RECEIPT_INVALID"
+        reason = f"Expected a verified LeRobot {expected_format} receipt in {field}"
+        if isinstance(receipt, dict):
+            actual_format = receipt.get("dataset_format")
+            if actual_format is None and receipt.get("format") == f"LeRobot {LEGACY_FORMAT}":
+                actual_format = LEGACY_FORMAT
+            path = receipt.get("dataset_path")
+            if actual_format != expected_format:
+                code = "DATASET_FORMAT_MISMATCH"
+                reason = f"Unexpected LeRobot dataset version in {field}"
+            elif (receipt.get("official_reader_verified") is True
+                  and receipt.get("files_manifest") == FILES_MANIFEST
+                  and isinstance(path, str) and Path(path).name.endswith(SUFFIXES[expected_format])):
+                continue
+        return {**record, "status": "dataset_finalization_failed", "code": code,
+                "dataset_failure": reason, "expected_dataset_format": expected_format,
+                "actual_dataset_format": actual_format if isinstance(actual_format, str) else None,
+                "dataset": None, "partial_dataset": None, "raw_trajectory_path": None}, True
+    return record, False
 
 
 def read_native_summary(job_id, root=ROOT):
@@ -85,8 +116,12 @@ class Jobs:
         result = {"id": job_id, "operation": row["operation"], "state": row["state"],
                   "created_unix": row["created"], "updated_unix": row["updated"],
                   "native_job_id": row["native_id"], "result": json.loads(row["result"]) if row["result"] else None}
+        dataset_format = json.loads(row["payload"]).get("dataset_format")
+        if dataset_format is not None:
+            result["dataset_format"] = dataset_format
         if row["operation"] == "isaac_physx" and row["native_id"]:
-            result["native"] = read_native_summary(row["native_id"])
+            native = read_native_summary(row["native_id"])
+            result["native"], _ = check_dataset_result(native, dataset_format)
         return result
 
     @contextmanager
@@ -136,8 +171,9 @@ class Jobs:
                 result=resume(row["native_id"],execute=payload["execute"])
             else:
                 result = registry.invoke(row["operation"], payload, native_job)
+            result, invalid_dataset = check_dataset_result(result, payload.get("dataset_format"))
             encoded = json.dumps(result, ensure_ascii=False, allow_nan=False)
-            state = "finished"
+            state = "failed" if invalid_dataset else "finished"
         except UnsupportedRequest as exc:
             state, encoded = "failed", json.dumps(exc.details, ensure_ascii=False)
         except Exception as exc:

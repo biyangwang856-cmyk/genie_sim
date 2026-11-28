@@ -2,16 +2,30 @@
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import uuid
 from pathlib import Path
 
 from collection_control import ROOT, STORAGE
+from lerobot_layout import DATASET_FORMAT, FILES_MANIFEST, LEGACY_FORMAT, READER_VERSION, dataset_info, dataset_name
+from verify_download import write_dataset_inventory
 
-READER = STORAGE / 'lerobot-reader-0cf8648/bin/python'
-READER_COMMIT = '0cf864870cf29f4738d3ade893e6fd13fbd7cdb5'
+READER = STORAGE / 'lerobot-reader-v3/bin/python'
+
+
+def check_loader(dataset, version, episodes):
+    info = dataset_info(dataset)
+    loader = json.loads((dataset/'official_loader_receipt.json').read_bytes())
+    if (info['codebase_version'] != version or loader.get('format') != version
+            or loader.get('passed') is not True or loader['episodes'] != episodes
+            or info['total_episodes'] != episodes or loader['frames'] != info['total_frames']):
+        raise ValueError(f'Reader receipt did not verify the complete episode selection: {dataset}')
+    if version == DATASET_FORMAT and (loader.get('reader_distribution') != READER_VERSION
+                                      or loader.get('numeric_readback_exact') is not True
+                                      or loader.get('video_samples_match_shards') is not True):
+        raise ValueError(f'Dataset requires the verified LeRobot {READER_VERSION} reader: {dataset}')
+    return loader
 
 
 def quota_runs(job, *, allow_partial=False):
@@ -37,12 +51,14 @@ def quota_runs(job, *, allow_partial=False):
 
 
 def finalize(job, job_path, *, allow_partial=False):
+    requested_format = job.get('dataset_format')
+    if requested_format is not None and requested_format != DATASET_FORMAT:
+        raise ValueError(f'Collection requires LeRobot Dataset {DATASET_FORMAT}')
     runs = quota_runs(job, allow_partial=allow_partial)
     name = job['job_id']
-    if not re.fullmatch(r'[a-zA-Z0-9_-]+',name):raise ValueError('Invalid job ID for dataset directory')
     selection = hashlib.sha256(json.dumps([str(run) for run in runs]).encode()).hexdigest()[:14]
     if allow_partial:name += '-partial-'+selection
-    output = STORAGE/'exports'/(name+'-v2-1')
+    output = STORAGE/'exports'/dataset_name(name)
     sources = [{'run':str(run),'launch_sha256':hashlib.sha256((run/'launch.json').read_bytes()).hexdigest()} for run in runs]
     trajectory = job.get('trajectory_request')
     diversity_summary = None
@@ -61,16 +77,23 @@ def finalize(job, job_path, *, allow_partial=False):
                 if fingerprint != seal['motion_sha256']:
                     raise ValueError('Training motion changed after diversity admission')
             source['training_motion_sha256']=fingerprint
-    if output.exists():
-        receipt = json.loads((output/'finalization.json').read_text())
+    reusable_formats = (DATASET_FORMAT, LEGACY_FORMAT) if requested_format is None else (DATASET_FORMAT,)
+    for version in reusable_formats:
+        published = output.with_name(dataset_name(name, version))
+        if not published.exists():
+            continue
+        receipt = json.loads((published/'finalization.json').read_bytes())
         if receipt['sources']!=sources or receipt['job_id']!=name:
-            raise FileExistsError(f'Dataset directory contains a different episode selection: {output}')
-        loader_file = output/'official_loader_receipt.json'
-        loader = json.loads(loader_file.read_text())
-        if loader.get('passed') is not True or loader['episodes']!=len(runs):
-            raise ValueError(f'Existing dataset lacks a passing loader receipt: {output}')
+            raise FileExistsError(f'Dataset directory contains a different episode selection: {published}')
+        loader_file = published/'official_loader_receipt.json'
+        loader = check_loader(published, version, len(runs))
+        if (receipt.get('official_reader_verified') is not True or receipt['frames'] != loader['frames']
+                or Path(receipt['dataset_path']).resolve() != published.resolve()):
+            raise ValueError(f'Existing publication receipt does not match the dataset: {published}')
+        if version == DATASET_FORMAT and not (published/FILES_MANIFEST).is_file():
+            raise ValueError(f'Existing dataset has no integrity inventory: {published}')
         if hashlib.sha256(loader_file.read_bytes()).hexdigest()!=receipt['loader_receipt_sha256']:
-            raise ValueError(f'Existing loader receipt was changed: {output}')
+            raise ValueError(f'Existing loader receipt was changed: {published}')
         if diversity_summary is not None:
             if receipt.get('trajectory_diversity') != diversity_summary:
                 raise ValueError('Existing dataset has different trajectory diversity evidence')
@@ -87,12 +110,11 @@ def finalize(job, job_path, *, allow_partial=False):
             subprocess.run([str(READER),str(ROOT/'verify_lerobot_reader.py'),str(staging)],
                            env=dict(os.environ,CUDA_VISIBLE_DEVICES='',HF_HUB_OFFLINE='1',OMP_NUM_THREADS='2'),
                            stdout=log,stderr=subprocess.STDOUT,check=True,timeout=900)
-        loader = json.loads((staging/'official_loader_receipt.json').read_text())
-        if loader.get('passed') is not True or loader['episodes']!=len(runs) or loader.get('lerobot_commit')!=READER_COMMIT:
-            raise ValueError('Reader receipt did not verify the complete episode selection')
+        loader = check_loader(staging, DATASET_FORMAT, len(runs))
         report(job_path, print_report=False)
         shutil.copy2(Path(job_path).parent/'metrics.json',staging/'metrics.json')
-        receipt = {'job_id':name,'dataset_path':str(output),'format':'LeRobot v2.1','sources':sources,
+        receipt = {'job_id':name,'dataset_path':str(output),'format':f'LeRobot {DATASET_FORMAT}',
+                   'dataset_format':DATASET_FORMAT,'files_manifest':FILES_MANIFEST,'sources':sources,
                    'episodes':len(runs),'frames':loader['frames'],'official_reader_verified':True,
                    'loader_receipt_sha256':hashlib.sha256((staging/'official_loader_receipt.json').read_bytes()).hexdigest()}
         if job.get('require_distinct_motion'):
@@ -103,6 +125,7 @@ def finalize(job, job_path, *, allow_partial=False):
             receipt['source_job_id']=job['job_id']
             receipt['requested_quotas_complete']=False
         (staging/'finalization.json').write_text(json.dumps(receipt,indent=2))
+        write_dataset_inventory(staging)
         if output.exists():raise FileExistsError(output)
         staging.rename(output)
     except Exception as exc:

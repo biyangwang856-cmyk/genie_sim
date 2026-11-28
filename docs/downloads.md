@@ -26,6 +26,25 @@ bash download_from_lab.sh image "$LAB" "$DEST"
 
 前三条分别完成可续传的目录复制和逐文件大小、SHA-256 核验。使用 Linux 文件系统（WSL 可用 home 目录）能保留 raw 包内部的硬链接。资产传输会跳过本机可重建的下载缓存。脚本从 Git 包内固定清单校验资产和 LeRobot，先核对 raw 的 `manifest.json` 摘要，再核对 882 个回合文件和 4 份验收回执。下载镜像中途断网可以重跑镜像命令，流式 tar 需要从头传。成功时才发布最终文件名。
 
+省略作业 ID 时下载上表的历史样例。下载新作业时，从发布回执取得作业 ID。训练包用 `dataset-files.json` 校验，原始包用 `manifest.json` 校验。
+
+```bash
+JOB=lerobot-v30-verification-20261128
+bash download_from_lab.sh lerobot "$LAB" "$DEST" "$JOB"
+bash download_from_lab.sh raw "$LAB" "$DEST" "$JOB"
+```
+
+训练侧安装 [采集手册中的 LeRobot v3.0 读取环境](../PIPELINE.md#数据与读取)，使用整个目录读取。
+
+```python
+from pathlib import Path
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+data = LeRobotDataset("local/geniesim_native", root=Path("/path/to/job-v3-0"), video_backend="pyav")
+sample = data[0]
+print(sample["task"], sample["observation.state"].shape, sample["action"].shape)
+```
+
 在**接收机**加载、验证团队镜像。上传到 GitHub 的协作包里只保存镜像 ID、补丁与步骤。
 
 ```bash
@@ -53,8 +72,9 @@ rsync -aH --partial "$LAB:$RAW/episode_000002/" "$DEST/one-episode/episode_00000
 
 下表路径相对于实验室的 `/data/by/genie_sim/exports/`。每个训练集有 `official_loader_receipt.json`，原始包有包含 SHA-256 的 `manifest.json`。有服务器访问权限的成员可按需用 `rsync -aH --partial` 复制目录。
 
-| 样例 | 回合与帧数 | LeRobot v2.1 目录 | 原始轨迹目录 |
+| 样例 | 回合与帧数 | LeRobot 目录 | 原始轨迹目录 |
 | --- | ---: | --- | --- |
+| 手机和 4B 橡皮入盒，原生 v3.0 读回验证 | 2 条，2,870 帧 | `lerobot-v30-verification-20261128-v3-0` | `lerobot-v30-verification-20261128-raw-trajectories` |
 | 手机入盒，两种不同布局 | 2 条，2,852 帧 | `20261126-152211-skills-f805ead3f9e74334-v2-1` | `20261126-152211-skills-f805ead3f9e74334-raw-trajectories` |
 | 手机入盒，显式复执行 | 1 条，1,426 帧 | `20261126-164344-skills-7b3f917abbac4a1c-v2-1` | `20261126-164344-skills-7b3f917abbac4a1c-raw-trajectories` |
 | 目录外 4B 橡皮入盒 | 1 条，1,444 帧 | `20261127-104856-skills-d3a5d4cf1c7e4b16-v2-1` | `20261127-104856-skills-d3a5d4cf1c7e4b16-raw-trajectories` |

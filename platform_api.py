@@ -9,6 +9,7 @@ import time
 from wsgiref.simple_server import make_server
 
 from genie_extensions import Registry
+from lerobot_layout import DATASET_FORMAT
 from platform_jobs import Jobs, RequestConflict
 from robot_adapters import UnsupportedRequest
 
@@ -51,7 +52,7 @@ def create_app(directory, registry=None):
         if path == "/v1/capabilities":
             if method != "GET":
                 raise HttpError(405, "Use GET")
-            return 200, {"version": "v1", "operations": registry.describe()}, []
+            return 200, {"version": "v1", "dataset_format": DATASET_FORMAT, "operations": registry.describe()}, []
         match = re.fullmatch(r"/v1/jobs/([a-f0-9]{32})", path)
         if match:
             if method != "GET":
@@ -75,7 +76,10 @@ def create_app(directory, registry=None):
         request = registry.validate(name, payload)
         job_id = jobs.enqueue(name, request, env.get("HTTP_IDEMPOTENCY_KEY"))
         url = "/v1/jobs/" + job_id
-        return 202, {"id": job_id, "status_url": url}, [("Location", url)]
+        receipt = {"id": job_id, "status_url": url}
+        if not extension:
+            receipt["dataset_format"] = request["dataset_format"]
+        return 202, receipt, [("Location", url)]
 
     def app(env, start_response):
         try:

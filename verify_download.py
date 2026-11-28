@@ -1,4 +1,4 @@
-"""Verify a team download against pinned release digests, without a simulator or network."""
+"""Verify a release or job download without a simulator or network."""
 import argparse
 import gzip
 import hashlib
@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import tarfile
 import tempfile
+
+from lerobot_layout import DATASET_FORMAT, FILES_MANIFEST, dataset_info
 
 
 RELEASE = Path(__file__).resolve().parent / "release"
@@ -19,8 +21,35 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def records(kind, root):
+def write_dataset_inventory(root):
+    files = [{"path": path.relative_to(root).as_posix(), "size": path.stat().st_size, "sha256": digest(path)}
+             for path in sorted(root.rglob("*")) if path.is_file() and path != root / FILES_MANIFEST]
+    inventory = {"dataset_format": DATASET_FORMAT, "files": files}
+    with (root / FILES_MANIFEST).open("x", encoding="utf-8") as stream:
+        json.dump(inventory, stream, indent=2)
+
+
+def records(kind, root, *, manifest_sha256=None):
     release = json.loads((RELEASE / "reference.json").read_bytes())
+    if kind == "lerobot" and (root / "meta/info.json").is_file():
+        if dataset_info(root)["codebase_version"] == DATASET_FORMAT:
+            manifest = root / FILES_MANIFEST
+            if manifest_sha256 is not None and digest(manifest) != manifest_sha256:
+                raise ValueError("Dataset manifest does not match the supplied checksum")
+            inventory = json.loads(manifest.read_bytes())
+            if inventory["dataset_format"] != DATASET_FORMAT:
+                raise ValueError("Dataset manifest version differs from meta/info.json")
+            names = {entry["path"] for entry in inventory["files"]}
+            required = {"meta/info.json", "meta/tasks.parquet", "meta/stats.json", "official_loader_receipt.json",
+                        "export_receipt.json", "finalization.json"}
+            if not required <= names or len(names) != len(inventory["files"]):
+                raise ValueError("Dataset manifest is incomplete or contains duplicate paths")
+            layout_files = {path.relative_to(root).as_posix() for directory in ("meta", "data", "videos")
+                            for path in (root / directory).rglob("*") if path.is_file()}
+            if layout_files != {name for name in names if name.split("/", 1)[0] in {"meta", "data", "videos"}}:
+                raise ValueError("Dataset layout differs from the published inventory")
+            yield from inventory["files"]
+            return
     if kind != "raw":
         name = "asset-files.json.gz" if kind == "assets" else "lerobot-files.json.gz"
         if digest(RELEASE / name) != release[kind]["inventory_sha256"]:
@@ -29,9 +58,16 @@ def records(kind, root):
             yield from json.load(src)["files"]
         return
     manifest = root / "manifest.json"
-    if digest(manifest) != release["raw"]["manifest_sha256"]:
-        raise ValueError("Raw manifest differs from the published release")
+    checksum = digest(manifest)
     data = json.loads(manifest.read_bytes())
+    if Path(data["training_dataset"]).name == Path(release["lerobot"]["lab_root"]).name:
+        if checksum != release["raw"]["manifest_sha256"]:
+            raise ValueError("Raw manifest differs from the published release")
+    if manifest_sha256 is not None and checksum != manifest_sha256:
+        raise ValueError("Raw manifest does not match the supplied checksum")
+    if (data.get("all_files_checksum_verified") is not True
+            or data["episodes"] < 1 or data["episodes"] != len(data["trajectory_index"])):
+        raise ValueError("Raw archive manifest does not describe a verified episode selection")
     for episode in data["trajectory_index"]:
         for item, row in episode["files"].items():
             yield {"path": episode["directory"] + "/" + item, "size": row["bytes"], "sha256": row["sha256"]}
@@ -104,11 +140,15 @@ def main():
     parser.add_argument("path", type=Path)
     parser.add_argument("--restore-asset-receipt", action="store_true",
                         help="After full asset verification, install the exact lab release receipt if absent")
+    parser.add_argument("--manifest-sha256", help="Expected SHA-256 of a published v3.0 or raw job inventory")
     args = parser.parse_args()
     if args.restore_asset_receipt and args.kind != "assets":
         parser.error("--restore-asset-receipt applies only to assets")
+    if args.manifest_sha256 is not None and args.kind not in {"lerobot", "raw"}:
+        parser.error("--manifest-sha256 applies only to LeRobot and raw job downloads")
     try:
-        result = verify_image(args.path) if args.kind == "image" else verify_files(args.path, records(args.kind, args.path))
+        result = (verify_image(args.path) if args.kind == "image" else
+                  verify_files(args.path, records(args.kind, args.path, manifest_sha256=args.manifest_sha256)))
         if args.restore_asset_receipt:
             restore_asset_receipt(args.path)
     except (OSError, ValueError, KeyError, tarfile.TarError) as exc:

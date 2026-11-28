@@ -35,6 +35,7 @@ def pinned_code():
              "archive_episode.py", "bundle_raw_trajectories.py", "audit_capture_clock.py",
              "validate_render_alignment.py", "validate_dynamic_render.py", "validate_snapshot_fk.py",
              "reextract_recording.py", "verify_lerobot_reader.py", "metrics_report.py",
+             "lerobot_layout.py", "lerobot_v3.py", "verify_download.py",
              "collection_scope.py", "natural_backend.py", "prepare_skill_plans.py",
              "scene_composer.py", "scene_catalog.py", "asset_retrieval.py", "genie_extensions.py",
              "trajectory_diversity.py", "trajectory_admission.py", "trajectory_replay.py",

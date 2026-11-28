@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from collection_scope import DEFAULT_ROBOT, DYNAMIC_TASKS, SCENES, TASKS
+from lerobot_layout import DATASET_FORMAT
 from robot_adapters import UnsupportedRequest
 from scene_contract import NEW_SCENE_MODES, count, scene_request
 
@@ -59,7 +60,8 @@ def isaac_collection(payload, on_native_job):
         options["skill_goal"] = payload["skill_goal"]
     result=submit(payload["instruction"], robot_id=payload["robot_id"],
                   task_ids=payload.get("task_ids"), scenes=payload["scenes"],
-                  execute=payload["execute"], on_prepared=on_native_job, **options)
+                  execute=payload["execute"], on_prepared=on_native_job,
+                  dataset_format=payload["dataset_format"], **options)
     if "job_id" not in result and result.get("status") in {"unsupported","capability_gap"}:
         error=UnsupportedRequest(result.get("message",result.get("reason","Skill unavailable")))
         error.details.update(result)
@@ -105,7 +107,8 @@ class Registry:
         if not isinstance(payload, dict):
             raise ValueError("Expected a JSON object")
         required = set(spec.inputs)
-        allowed = required | ({"robot_id", "task_ids", "scenes", "execute"} if spec.collection else set())
+        allowed = required | ({"robot_id", "task_ids", "scenes", "execute", "dataset_format"}
+                              if spec.collection else set())
         if name == "isaac_physx":
             allowed |= {"task_id", "scene_request", "successes_per_scene", "trajectory_request", "skill_goal"}
         if required - payload.keys() or payload.keys() - allowed:
@@ -116,8 +119,16 @@ class Registry:
                 raise ValueError(f"Expected a nonempty string of at most 8192 characters for {field}")
         if not spec.collection:
             return dict(payload)
+        dataset_format = payload.get("dataset_format", DATASET_FORMAT)
+        if not isinstance(dataset_format, str):
+            raise ValueError("dataset_format must be a string")
+        if dataset_format != DATASET_FORMAT:
+            error = UnsupportedRequest(f"Collection requires LeRobot Dataset {DATASET_FORMAT}")
+            error.details.update(code="DATASET_FORMAT_UNSUPPORTED", expected_dataset_format=DATASET_FORMAT)
+            raise error
         scope = self.scopes[name]
-        cfg = {"robot_id": scope["robot_ids"][0], "scenes": list(scope["scenes"]), "execute": False, **payload}
+        cfg = {"robot_id": scope["robot_ids"][0], "scenes": list(scope["scenes"]),
+               "execute": False, "dataset_format": dataset_format, **payload}
         if "task_id" in cfg:
             if "task_ids" in cfg:
                 raise ValueError("Provide task_id or task_ids")

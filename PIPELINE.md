@@ -82,26 +82,40 @@ Python 接口：`natural_backend.submit(instruction, robot_id=..., task_ids=...,
 - `evidence/`：实际下发控制、实测状态、120Hz 装配证据、执行步骤、模型原文与 API 用量、相机和源代码核对。
 - `acceptance.json`：完整独立验收。实际穿孔、套合或放置关系与相应稳定性判据、时间同步和命令来源共同决定结果。
 
-全部场景配额通过后，`batch_collect.py` 自动将合格回合导出为 `/data/by/genie_sim/exports/<job_id>-v2-1`。独立 CPU 读取器核对数值和三路视频后，作业返回 `status=complete` 及 `dataset.dataset_path`。导出或读取异常时，作业保留轨迹和诊断目录，状态为 `dataset_finalization_failed`，重跑同一作业可接续。
+全部场景配额通过后，采集后台直接将合格回合导出为 `/data/by/genie_sim/exports/<job_id>-v3-0`。独立 CPU 读取器核对数值和三路视频后，作业返回 `status=complete`、`dataset.dataset_path` 和 `dataset.dataset_format=v3.0`。导出或读取异常时，作业保留轨迹和诊断目录，状态为 `dataset_finalization_failed`，重跑同一作业可接续。已发布的 v2.1 作业接续时复用原发布记录。
+
+升级前已冻结执行代码的在途作业沿用原运行目录接续。完成验收后，可用下方的手动导出命令另生成一份 v3.0 数据集。
 
 正式数据集验证完成后，可以按同一回合编号集中保存原始轨迹。
 
 ```bash
-.venv/bin/python bundle_raw_trajectories.py /data/by/genie_sim/exports/<job_id>-v2-1
+.venv/bin/python bundle_raw_trajectories.py /data/by/genie_sim/exports/<job_id>-v3-0
 ```
 
 集中目录为 `/data/by/genie_sim/exports/<job_id>-raw-trajectories`。`manifest.json` 对应正式数据集的 `episode_index`，列出原始 MCAP、同步状态、实际动作、相机视频和 SHA-256。每个回合保存首次原始记录和已使用的同步版本。同步版复用目录内同一份 MCAP，整份原始包可以独立读取。
 
-采集服务器读取环境的路径为 `/data/by/genie_sim/lerobot-reader-0cf8648`，锁定团队使用的 LeRobot 提交 `0cf864870cf29f4738d3ade893e6fd13fbd7cdb5`。作业中的 `success_counts` 和 `attempts` 可从 `job.json` 读取，实际运行进程需同时检查项目专属 Docker socket。
+LeRobot Dataset v3.0 由多个回合共享 Parquet 和视频分片。`meta/episodes/chunk-*/file-*.parquet` 记录回合的全局行号范围和各相机的视频偏移。`meta/tasks.parquet` 保存任务索引，`meta/stats.json` 保存全局统计。视频按编码参数分片，并逐回合校验编码数据、帧数与时间轴。[官方 v3.0 目录规范](https://huggingface.co/docs/lerobot/lerobot-dataset-v3)
 
-导出 LeRobot：
+服务器发布使用 `/data/by/genie_sim/lerobot-reader-v3/bin/python`，运行官方 `lerobot==0.7.0` 的 CPU 读取器。新增读取环境可按下列命令准备。官方包需要 Python 3.12 或更新版本。[官方 LeRobot 0.7.0](https://pypi.org/project/lerobot/0.7.0/)
+
+```bash
+READER=/data/by/genie_sim/lerobot-reader-v3
+python3.12 -m venv "$READER"
+"$READER/bin/python" -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.7.1" "torchvision==0.22.1"
+"$READER/bin/python" -m pip install 'lerobot[dataset,av-dep]==0.7.0' 'numpy==2.2.6' 'av==15.1.0'
+```
+
+历史 v2.1 数据继续用 `/data/by/genie_sim/lerobot-reader-0cf8648/bin/python`，锁定提交 `0cf864870cf29f4738d3ade893e6fd13fbd7cdb5`。作业中的 `success_counts` 和 `attempts` 可从 `job.json` 读取。
+
+已验收回合可手动导出成新的 v3.0 数据目录。手动导出和读回用于验证，正式发布由作业补齐发布回执、完整性清单和原始包索引。
 
 ```bash
 .venv/bin/python export_lerobot.py --episode /data/by/genie_sim/collection-runs/<run> \
-  --output /data/by/genie_sim/exports/<new-dataset>
+  --output /data/by/genie_sim/exports/<new-dataset>-v3-0
+/data/by/genie_sim/lerobot-reader-v3/bin/python verify_lerobot_reader.py /data/by/genie_sim/exports/<new-dataset>-v3-0
 ```
 
-沿用团队实际读取格式 `v2.1`。当前 G2 原生状态和位置动作各为 42 维，按归档关节名称排列，全部为转动关节弧度。速度、力矩、有效值掩码和实际驱动增益/最大力矩单独保存。`action` 来自真实控制目标，不从测量状态伪造；零增益关节的对应目标不代表控制生效。
+当前 G2 原生状态和位置动作各为 42 维，按归档关节名称排列，全部为转动关节弧度。速度、力矩、有效值掩码和实际驱动增益、最大力矩单独保存。`action` 来自当时实际下发的控制目标。只有对应驱动增益生效时，该关节目标才参与控制。
 
 每回合的导出溯源目录保存实际执行的场景配置、任务加载脚本、记录元数据、第一条同步关节观测和模型执行前的实测初态。`control-spec.json` 按关节列出状态、控制与驱动参数的单位；每份数据集使用一种机器人和相机的数据描述。
 
@@ -111,7 +125,7 @@ Python 接口：`natural_backend.submit(instruction, robot_id=..., task_ids=...,
 
 原生录制结果最多等待 1,200 秒。如果封装进程先超时，独立验收要求真实技能程序已执行成功、归档中的原生任务结果确实成功，并重新核对三路原始时标、动作与物理判据。任何缺失的源相机帧仍导致拒收。归档保留封装报告和原生任务结果。
 
-`verify_lerobot_reader.py` 使用团队现有官方 `LeRobotDataset` 读取全部数值和每回合首、中、末三路图像。原生数据可读取，不等于 π0.5 动作归一化和执行适配已验证。训练侧还需明确策略控制维度和夹爪接口，不能直接套用旧 ALOHA 归一化。
+`verify_lerobot_reader.py` 用对应版本的官方 `LeRobotDataset` 核对全部数值，并逐回合抽查首、中、末帧的三路图像。重新验证已经发布的包时，把 `--receipt-path` 指向数据目录外的新文件。π0.5 的动作映射、归一化和执行适配仍需训练端验证。
 
 ## 新增机器人
 

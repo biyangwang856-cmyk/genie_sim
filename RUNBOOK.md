@@ -40,7 +40,7 @@ cd /home/vipuser/by/genie_sim
 - 原始三路视频：原始录制目录的 `observations/videos/{head,hand_left,hand_right}_color.mp4`。
 - `audit_episode.py <回合目录>` 检查完整任务判据、真实抬升、无回滚、有限控制量、持物规划几何、相机更新异常、视频全解码、帧数一致和空白画面。
 - 一次失败后的回滚探索可保留为调试记录，不能算作连续成功的训练回合。成功额度按新进程完整重执行并通过验收的回合计数。
-- 当前原生 HDF5/MCAP 不是已经验证的 LeRobot 或 π0.5 输入；仓库提供 AgiBot→LeRobot v2.1 转换器，仍需针对本次模型版本和动作语义验证后再交付。
+- HDF5 和 MCAP 属于原始记录。作业验收后从同步记录直接发布 LeRobot Dataset v3.0，并通过官方读取器核对。历史 v2.1 包继续使用原环境。π0.5 的 G2 动作适配仍需单独验证。[采集与读取](PIPELINE.md#数据与读取)
 
 物理运行使用官方资产和 PhysX；规划 attachment 只描述持物碰撞几何，不将物体焊到机器人。
 笔帽资产自带 `PenAttachJoint` 锁合近似，必须在数据元信息中披露。

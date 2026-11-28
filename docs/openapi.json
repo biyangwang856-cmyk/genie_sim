@@ -69,7 +69,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Accepted"
+                  "$ref": "#/components/schemas/CollectionAccepted"
                 }
               }
             },
@@ -219,6 +219,11 @@
             "type": "string",
             "default": "isaac_physx"
           },
+          "dataset_format": {
+            "$ref": "#/components/schemas/DatasetFormat",
+            "default": "v3.0",
+            "description": "Format of any training dataset published for the job. A different format returns HTTP 422."
+          },
           "robot_id": {
             "type": "string",
             "minLength": 1
@@ -310,6 +315,40 @@
           }
         }
       },
+      "DatasetFormat": {
+        "type": "string",
+        "const": "v3.0",
+        "description": "LeRobot Dataset format for platform collection."
+      },
+      "CollectionAccepted": {
+        "allOf": [
+          {"$ref": "#/components/schemas/Accepted"},
+          {
+            "type": "object",
+            "required": ["dataset_format"],
+            "properties": {
+              "dataset_format": {"$ref": "#/components/schemas/DatasetFormat"}
+            }
+          }
+        ]
+      },
+      "DatasetReceipt": {
+        "type": "object",
+        "required": ["dataset_format", "dataset_path", "files_manifest", "official_reader_verified"],
+        "properties": {
+          "dataset_format": {"$ref": "#/components/schemas/DatasetFormat"},
+          "dataset_path": {"type": "string", "minLength": 1},
+          "files_manifest": {"const": "dataset-files.json"},
+          "official_reader_verified": {"const": true}
+        }
+      },
+      "CollectionResult": {
+        "type": ["object", "null"],
+        "properties": {
+          "dataset": {"anyOf": [{"$ref": "#/components/schemas/DatasetReceipt"}, {"type": "null"}]},
+          "partial_dataset": {"anyOf": [{"$ref": "#/components/schemas/DatasetReceipt"}, {"type": "null"}]}
+        }
+      },
       "Job": {
         "type": "object",
         "required": [
@@ -327,6 +366,10 @@
           "operation": {
             "type": "string",
             "minLength": 1
+          },
+          "dataset_format": {
+            "$ref": "#/components/schemas/DatasetFormat",
+            "description": "Requested format for jobs accepted under the versioned collection contract."
           },
           "state": {
             "enum": [
@@ -361,7 +404,14 @@
               "object",
               "null"
             ],
-            "description": "Read result.status and its dataset receipt to distinguish preparation, review and verified completion."
+            "description": "Read result.status and its dataset receipt to distinguish preparation, review and verified completion. Historical receipts can resolve to v2.1."
+          }
+        },
+        "if": {"required": ["dataset_format"]},
+        "then": {
+          "properties": {
+            "native": {"$ref": "#/components/schemas/CollectionResult"},
+            "result": {"$ref": "#/components/schemas/CollectionResult"}
           }
         }
       },
@@ -369,12 +419,14 @@
         "type": "object",
         "required": [
           "version",
+          "dataset_format",
           "operations"
         ],
         "properties": {
           "version": {
             "const": "v1"
           },
+          "dataset_format": {"$ref": "#/components/schemas/DatasetFormat"},
           "operations": {
             "type": "array",
             "items": {
